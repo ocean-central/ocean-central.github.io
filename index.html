@@ -25,6 +25,7 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            z-index: 2;
         }
 
         .hud-top {
@@ -87,7 +88,7 @@
             justify-content: center;
             color: white;
             pointer-events: auto;
-            z-index: 10;
+            z-index: 20;
             cursor: pointer;
         }
 
@@ -186,7 +187,7 @@
             position: absolute;
             bottom: 40px;
             pointer-events: auto;
-            z-index: 6;
+            z-index: 15; /* Higher than look zone */
             touch-action: none;
         }
 
@@ -231,7 +232,7 @@
             font-weight: bold;
             opacity: 0.75;
             box-shadow: 0 0 15px rgba(255, 0, 85, 0.25);
-            z-index: 8;
+            z-index: 15;
             user-select: none;
             -webkit-user-select: none;
         }
@@ -241,15 +242,15 @@
             transform: scale(0.96);
         }
 
-        /* Look Zone (Right half of screen) */
+        /* Look Zone (Full Screen Background) */
         #look-zone {
             position: absolute;
             top: 0;
-            right: 0;
-            width: 50%;
+            left: 0;
+            width: 100%;
             height: 100%;
             pointer-events: auto;
-            z-index: 4; /* Behind buttons */
+            z-index: 1; /* Lowest interaction layer */
             touch-action: none;
         }
     </style>
@@ -273,7 +274,7 @@
     </div>
 
     <div id="mobile-controls">
-        <div id="look-zone"></div> <!-- Invisible zone for looking -->
+        <div id="look-zone"></div> <!-- Now covers full screen -->
         <div id="joystick-zone" class="control-zone">
             <div id="joystick-thumb"></div>
         </div>
@@ -282,8 +283,8 @@
 
     <div id="start-screen">
         <h1>GRID LOCK</h1>
-        <p>MOBILE: LEFT STICK Move • RIGHT SIDE Aim • BTN Fire</p>
-        <p>PC: WASD Move • MOUSE Aim • CLICK Fire</p>
+        <p>MOBILE: LEFT STICK Move • TOUCH ANYWHERE Aim • BTN Fire</p>
+        <p>PC: WASD Move • MOUSE Aim • HOLD CLICK Auto-Fire</p>
         <button class="btn" id="init-btn">INITIALIZE</button>
     </div>
 
@@ -303,6 +304,7 @@
         let camera, scene, renderer;
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
         let joyVector = { x: 0, y: 0 };
+        let isFiring = false; // For auto-fire
 
         let prevTime = performance.now();
         const velocity = new THREE.Vector3();
@@ -310,14 +312,14 @@
         const clock = new THREE.Clock();
 
         // Sensitivity Settings
-        const BASE_SENSITIVITY = 0.005; // Increased from 0.002
+        const BASE_SENSITIVITY = 0.005; 
 
         let isLocked = false;
         let score = 0;
         let timeLeft = 60;
         let gameActive = false;
         let lastShotTime = 0;
-        const fireRate = 150; // ms
+        const fireRate = 100; // Faster fire rate for automatic
         let ammo = 30;
         const maxAmmo = 30;
         let isReloading = false;
@@ -325,16 +327,19 @@
         // Entities
         let targets = [];
         let debris = [];
+        let obstacles = []; // Walls
         let gunGroup;
         let muzzleFlash;
 
-        const raycaster = new THREE.Raycaster(); // reuse for performance
+        const raycaster = new THREE.Raycaster(); 
 
         // Colors
         const COLOR_GRID = 0x004444;
         const COLOR_GRID_MAIN = 0x00ffff;
         const COLOR_TARGET_FILL = 0xff6600;
         const COLOR_TARGET_WIRE = 0xffaa00;
+        const COLOR_OBSTACLE = 0x003333;
+        const COLOR_OBSTACLE_WIRE = 0x008888;
 
         function init() {
             // cache dom
@@ -372,24 +377,56 @@
         }
 
         function createEnvironment() {
+            // Floor
             const gridHelper = new THREE.GridHelper(200, 100, COLOR_GRID_MAIN, COLOR_GRID);
             scene.add(gridHelper);
 
+            // Ceiling
             const ceilGrid = new THREE.GridHelper(200, 40, 0x002222, 0x001111);
             ceilGrid.position.y = 20;
             scene.add(ceilGrid);
 
-            const geo = new THREE.BoxGeometry(2, 10, 2);
-            const mat = new THREE.MeshBasicMaterial({ color: 0x001111, wireframe: true });
+            createMap();
+        }
 
-            for (let i = 0; i < 20; i++) {
-                const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.x = (Math.random() - 0.5) * 100;
-                mesh.position.z = (Math.random() - 0.5) * 100;
-                mesh.position.y = 5;
-                if (Math.abs(mesh.position.x) < 10 && Math.abs(mesh.position.z) < 10) continue;
-                scene.add(mesh);
+        function createMap() {
+            // Define a Map Area (Size 80x80)
+            // Create Boundary Walls
+            createWall(0, 10, -40, 80, 20, 2); // Back
+            createWall(0, 10, 40, 80, 20, 2);  // Front
+            createWall(-40, 10, 0, 2, 20, 80); // Left
+            createWall(40, 10, 0, 2, 20, 80);  // Right
+
+            // Random Scatter of Internal Cubes/Walls
+            for(let i=0; i<12; i++) {
+                const w = 4 + Math.random() * 6;
+                const h = 4 + Math.random() * 8;
+                const d = 4 + Math.random() * 6;
+                
+                // Keep away from center (spawn)
+                let x, z;
+                do {
+                    x = (Math.random() - 0.5) * 60;
+                    z = (Math.random() - 0.5) * 60;
+                } while(Math.sqrt(x*x + z*z) < 10); 
+
+                createWall(x, h/2, z, w, h, d);
             }
+        }
+
+        function createWall(x, y, z, w, h, d) {
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mat = new THREE.MeshBasicMaterial({ color: COLOR_OBSTACLE });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            
+            // Wireframe edge
+            const edges = new THREE.EdgesGeometry(geo);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: COLOR_OBSTACLE_WIRE }));
+            mesh.add(line);
+
+            scene.add(mesh);
+            obstacles.push(mesh); // Add to array for spawn checks
         }
 
         function createGun() {
@@ -434,10 +471,53 @@
             scene.add(camera);
         }
 
+        // Collision Box check
+        function checkSpawnCollision(pos, radius) {
+            // Create a temp box for the candidate position
+            const tempBox = new THREE.Box3();
+            const center = new THREE.Vector3(pos.x, pos.y, pos.z);
+            // Using radius + 0.5 grid unit (roughly 2-3 units in this scale) buffer
+            tempBox.setFromCenterAndSize(center, new THREE.Vector3(radius*2 + 4, radius*2 + 4, radius*2 + 4));
+
+            for (let wall of obstacles) {
+                // Create bounding box for wall if not exists
+                if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();
+                
+                const wallBox = new THREE.Box3();
+                wallBox.copy(wall.geometry.boundingBox).applyMatrix4(wall.matrixWorld);
+
+                if (tempBox.intersectsBox(wallBox)) return true;
+            }
+            return false;
+        }
+
         function spawnTarget() {
-            if (targets.length >= 8) return;
+            // Limit total targets
+            if (targets.length >= 15) return; 
 
             const size = 1 + Math.random() * 0.5;
+            
+            // Find valid position
+            let x, y, z;
+            let valid = false;
+            let attempts = 0;
+
+            while(!valid && attempts < 20) {
+                attempts++;
+                x = (Math.random() - 0.5) * 70; // Stay within 80x80 walls
+                z = (Math.random() - 0.5) * 70;
+                y = 1 + Math.random() * 4;
+
+                // Check player dist
+                if (Math.sqrt(x*x + z*z) < 5) continue;
+
+                if (!checkSpawnCollision({x,y,z}, size)) {
+                    valid = true;
+                }
+            }
+
+            if (!valid) return; // Skip spawn if no spot found
+
             const geometry = new THREE.BoxGeometry(size, size, size);
             const material = new THREE.MeshBasicMaterial({ color: COLOR_TARGET_FILL, transparent: true, opacity: 0.22 });
             const target = new THREE.Mesh(geometry, material);
@@ -453,14 +533,7 @@
             core.position.set(0, 0, 0);
             target.add(core);
 
-            const angle = (Math.random() * Math.PI) - (Math.PI / 2);
-            const radius = 10 + Math.random() * 15;
-            const height = 1 + Math.random() * 3;
-
-            // keep targets generally in front of player
-            target.position.x = Math.sin(angle) * radius;
-            target.position.z = -Math.abs(Math.cos(angle) * radius);
-            target.position.y = height;
+            target.position.set(x, y, z);
 
             target.userData = {
                 id: Math.random(),
@@ -482,12 +555,12 @@
                 mesh.position.copy(position);
 
                 const vel = new THREE.Vector3(
-                    (Math.random() - 0.5) * 5,
-                    (Math.random() - 0.5) * 5,
-                    (Math.random() - 0.5) * 5
+                    (Math.random() - 0.5) * 8,
+                    (Math.random() - 0.5) * 8,
+                    (Math.random() - 0.5) * 8
                 );
 
-                debris.push({ mesh: mesh, velocity: vel, life: 1.0 });
+                debris.push({ mesh: mesh, velocity: vel, life: 0.8 });
                 scene.add(mesh);
             }
         }
@@ -502,69 +575,77 @@
             document.addEventListener('keydown', onKeyDown);
             document.addEventListener('keyup', onKeyUp);
 
-            // Clicking the start screen's button
             DOM.initBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 startGame();
             });
 
-            document.addEventListener('click', (e) => {
-                // don't treat clicks on mobile control zones as world click
+            // --- PC Mouse Events ---
+            // Use mousedown/up for auto fire state
+            document.addEventListener('mousedown', (e) => {
                 if (e.target.closest('.control-zone') || e.target.closest('#start-screen')) return;
-
+                
                 if (!gameActive && e.target.closest('#start-screen')) {
                     startGame();
                 } else if (gameActive && !isLocked && !isMobile()) {
                     document.body.requestPointerLock();
                 } else if (gameActive && isLocked) {
-                    shoot();
+                    isFiring = true;
                 }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isFiring = false;
             });
 
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('pointerlockchange', () => {
                 isLocked = document.pointerLockElement === document.body;
+                if (!isLocked) isFiring = false;
             });
 
-            // Joystick
+            // --- Mobile Events ---
             const joyZone = document.getElementById('joystick-zone');
             const joyThumb = document.getElementById('joystick-thumb');
-            const lookZone = document.getElementById('look-zone');
+            const lookZone = document.getElementById('look-zone'); // Full screen
             const fireBtn = DOM.fireBtn;
 
-            // Use pointer events for fire button (unified touch/mouse)
-            const handleFirePointerDown = (e) => {
+            // FIRE BTN - Auto Fire Logic
+            const handleFireStart = (e) => {
                 e.preventDefault();
-                e.stopPropagation();
-                // capture to avoid extra synthetic events
-                try { e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-                if (gameActive) shoot();
+                e.stopPropagation(); // Stop from bubbling to look zone
+                try { e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId); } catch (err) {}
+                if (gameActive) isFiring = true;
             };
-            const handleFirePointerUp = (e) => {
-                try { e.target.releasePointerCapture && e.target.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+            const handleFireEnd = (e) => {
+                isFiring = false;
+                try { e.target.releasePointerCapture && e.target.releasePointerCapture(e.pointerId); } catch (err) {}
             };
 
-            fireBtn.addEventListener('pointerdown', handleFirePointerDown, { passive: false });
-            fireBtn.addEventListener('pointerup', handleFirePointerUp);
-            fireBtn.addEventListener('pointercancel', handleFirePointerUp);
+            fireBtn.addEventListener('pointerdown', handleFireStart, { passive: false });
+            fireBtn.addEventListener('pointerup', handleFireEnd);
+            fireBtn.addEventListener('pointercancel', handleFireEnd);
 
-            // Joystick pointer events
+            // JOYSTICK
             const handleJoystickPointer = (ev) => {
                 ev.preventDefault();
+                // Stop propagation so Look Zone doesn't move camera while joystick is moving
+                ev.stopPropagation(); 
                 const p = ev;
                 if (p.pointerType === 'touch' || p.pointerType === 'pen' || p.pointerType === 'mouse') {
-                    // translate event to similar shape as touch
                     handleJoystick({ clientX: p.clientX, clientY: p.clientY }, joyZone, joyThumb);
                 }
             };
 
             joyZone.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
+                e.stopPropagation(); // Important: Don't trigger look
                 joyZone.setPointerCapture && joyZone.setPointerCapture(e.pointerId);
                 handleJoystickPointer(e);
             }, { passive: false });
 
             joyZone.addEventListener('pointermove', (e) => {
+                e.stopPropagation(); // Important
                 if (e.buttons === 0 && e.pointerType === 'mouse') return;
                 handleJoystickPointer(e);
             }, { passive: false });
@@ -576,20 +657,22 @@
                 joyThumb.style.transform = `translate(-50%, -50%)`;
             }, { passive: false });
 
-            // Look zone pointer / touch
+            // LOOK ZONE - Now covers full screen, behind other controls
             lookZone.addEventListener('pointerdown', (e) => {
+                // If we clicked a button (z-index higher) the event shouldn't reach here if propagated stopped
+                // But just in case, we trust z-index ordering and stopPropagation in buttons
                 lastTouchX = e.clientX;
                 lastTouchY = e.clientY;
             }, { passive: true });
 
             lookZone.addEventListener('pointermove', (e) => {
                 if (e.pointerType === 'mouse' && !e.buttons) return;
+                
                 const movementX = e.clientX - lastTouchX;
                 const movementY = e.clientY - lastTouchY;
                 lastTouchX = e.clientX;
                 lastTouchY = e.clientY;
                 
-                // Using same base sensitivity logic but doubling inputs for touch-like feel
                 handleLook(movementX * 2, movementY * 2);
             }, { passive: true });
         }
@@ -623,7 +706,6 @@
         }
 
         function startGame() {
-            // attempt pointer lock on desktop
             if (!isMobile()) {
                 try { document.body.requestPointerLock(); } catch (err) { /* ignore */ }
             }
@@ -636,7 +718,8 @@
             targets.forEach(t => scene.remove(t));
             targets = [];
 
-            for (let i = 0; i < 5; i++) spawnTarget();
+            // Spawn more targets for "scattering"
+            for (let i = 0; i < 10; i++) spawnTarget();
 
             const timerInterval = setInterval(() => {
                 if (!gameActive) {
@@ -654,6 +737,7 @@
 
         function endGame() {
             gameActive = false;
+            isFiring = false;
             try { document.exitPointerLock(); } catch (err) {}
             DOM.startScreen.style.display = 'flex';
             document.querySelector('#start-screen h1').textContent = "SIMULATION COMPLETE";
@@ -676,7 +760,6 @@
             camera.quaternion.setFromEuler(euler);
         }
 
-        // Helper to find the root target mesh (in case raycast hit child)
         function findTargetRoot(obj) {
             while (obj && !targets.includes(obj)) {
                 obj = obj.parent;
@@ -696,7 +779,7 @@
             if (now - lastShotTime < fireRate) return;
             lastShotTime = now;
 
-            // Simple recoil visual
+            // Recoil
             camera.rotation.x += 0.02;
             gunGroup.position.z += 0.2;
 
@@ -708,8 +791,6 @@
 
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-            // Raycast against the target meshes (top-level)
-            // Use recursive = true so children are considered for intersection reporting
             const intersects = raycaster.intersectObjects(targets, true);
 
             if (intersects.length > 0) {
@@ -717,21 +798,18 @@
                 const targetRoot = findTargetRoot(hit) || hit;
                 if (targetRoot) {
                     createExplosion(targetRoot.position);
-                    // remove whole root target from scene and array
                     scene.remove(targetRoot);
                     targets = targets.filter(t => t !== targetRoot);
 
                     score += 100;
                     updateScore();
 
-                    // Hit marker quick toggle
                     DOM.hitMarker.classList.add('active');
                     clearTimeout(DOM._hitTimeout);
                     DOM._hitTimeout = setTimeout(() => {
                         DOM.hitMarker.classList.remove('active');
                     }, 120);
 
-                    // spawn replacement
                     spawnTarget();
                 }
             }
@@ -740,6 +818,7 @@
         function reload() {
             if (isReloading) return;
             isReloading = true;
+            isFiring = false; // Stop firing
             DOM.ammoText.textContent = "RELOADING...";
             gunGroup.rotation.x = -0.5;
 
@@ -799,13 +878,17 @@
             const time = performance.now();
             const delta = (time - prevTime) / 1000;
 
+            // Automatic Fire Check
+            if (isFiring) shoot();
+
             velocity.x -= velocity.x * 10.0 * delta;
             velocity.z -= velocity.z * 10.0 * delta;
 
-            let inputZ = Number(moveForward) - Number(moveBackward);
+            // FIX: Swapped forward/back logic so W moves forward
+            let inputZ = Number(moveBackward) - Number(moveForward);
             let inputX = Number(moveRight) - Number(moveLeft);
 
-            // Joystick math (Inverted Y to match forward/back correctly)
+            // Joystick math
             if (Math.abs(joyVector.y) > 0.12) inputZ += joyVector.y;
             if (Math.abs(joyVector.x) > 0.12) inputX += joyVector.x;
 
@@ -824,11 +907,13 @@
                 camera.translateZ(-velocity.z * delta);
             }
 
+            // Clamp Player within map walls (simple box clamp)
+            camera.position.x = Math.max(-38, Math.min(38, camera.position.x));
+            camera.position.z = Math.max(-38, Math.min(38, camera.position.z));
             camera.position.y = 1.6;
 
-            // Gun recoil return (smoother)
+            // Gun recoil return
             gunGroup.position.z += (-0.5 - gunGroup.position.z) * 10 * delta;
-
             gunGroup.rotation.y = -velocity.x * 0.005;
             gunGroup.rotation.x = -velocity.z * 0.005;
 
@@ -843,8 +928,9 @@
                 target.rotation.x += 0.5 * delta;
             });
 
-            if (gameActive && targets.length < 4) {
-                if (Math.random() < 0.05) spawnTarget();
+            // Refill targets
+            if (gameActive && targets.length < 8) {
+                if (Math.random() < 0.1) spawnTarget();
             }
 
             for (let i = debris.length - 1; i >= 0; i--) {
@@ -863,7 +949,6 @@
             renderer.render(scene, camera);
         }
 
-        // Start
         init();
     </script>
 </body>
