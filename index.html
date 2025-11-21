@@ -5,14 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Neon Wireframe FPS Trainer</title>
     <style>
-        body {
+        html, body {
+            width: 100%;
+            height: 100%;
             margin: 0;
+            padding: 0;
             overflow: hidden;
             background-color: #050505;
             font-family: 'Courier New', Courier, monospace;
             user-select: none;
             -webkit-touch-callout: none; /* iOS Safari */
             touch-action: none; /* Prevent browser zooming/scrolling */
+            position: fixed; /* Fixes mobile viewport height issues */
         }
 
         #game-ui {
@@ -331,6 +335,11 @@
         let gunGroup;
         let muzzleFlash;
 
+        // Collision Helpers
+        const playerBox = new THREE.Box3();
+        const wallBox = new THREE.Box3();
+        const tempVec = new THREE.Vector3();
+
         const raycaster = new THREE.Raycaster(); 
 
         // Colors
@@ -471,44 +480,52 @@
             scene.add(camera);
         }
 
-        // Collision Box check
+        // --- Collision Logic ---
+
+        function checkPlayerCollision() {
+            // Assume player is roughly 1 unit wide, 2 units tall
+            playerBox.setFromCenterAndSize(camera.position, tempVec.set(1, 2, 1));
+
+            for (let wall of obstacles) {
+                if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();
+                
+                wallBox.copy(wall.geometry.boundingBox).applyMatrix4(wall.matrixWorld);
+
+                if (playerBox.intersectsBox(wallBox)) return true;
+            }
+            return false;
+        }
+
+        // For spawn point generation (simpler radius check)
         function checkSpawnCollision(pos, radius) {
-            // Create a temp box for the candidate position
             const tempBox = new THREE.Box3();
             const center = new THREE.Vector3(pos.x, pos.y, pos.z);
-            // Using radius + 0.5 grid unit (roughly 2-3 units in this scale) buffer
             tempBox.setFromCenterAndSize(center, new THREE.Vector3(radius*2 + 4, radius*2 + 4, radius*2 + 4));
 
             for (let wall of obstacles) {
-                // Create bounding box for wall if not exists
                 if (!wall.geometry.boundingBox) wall.geometry.computeBoundingBox();
-                
-                const wallBox = new THREE.Box3();
-                wallBox.copy(wall.geometry.boundingBox).applyMatrix4(wall.matrixWorld);
+                const wBox = new THREE.Box3();
+                wBox.copy(wall.geometry.boundingBox).applyMatrix4(wall.matrixWorld);
 
-                if (tempBox.intersectsBox(wallBox)) return true;
+                if (tempBox.intersectsBox(wBox)) return true;
             }
             return false;
         }
 
         function spawnTarget() {
-            // Limit total targets
             if (targets.length >= 15) return; 
 
             const size = 1 + Math.random() * 0.5;
-            
-            // Find valid position
             let x, y, z;
             let valid = false;
             let attempts = 0;
 
             while(!valid && attempts < 20) {
                 attempts++;
-                x = (Math.random() - 0.5) * 70; // Stay within 80x80 walls
+                x = (Math.random() - 0.5) * 70; 
                 z = (Math.random() - 0.5) * 70;
                 y = 1 + Math.random() * 4;
 
-                // Check player dist
                 if (Math.sqrt(x*x + z*z) < 5) continue;
 
                 if (!checkSpawnCollision({x,y,z}, size)) {
@@ -516,7 +533,7 @@
                 }
             }
 
-            if (!valid) return; // Skip spawn if no spot found
+            if (!valid) return; 
 
             const geometry = new THREE.BoxGeometry(size, size, size);
             const material = new THREE.MeshBasicMaterial({ color: COLOR_TARGET_FILL, transparent: true, opacity: 0.22 });
@@ -581,7 +598,6 @@
             });
 
             // --- PC Mouse Events ---
-            // Use mousedown/up for auto fire state
             document.addEventListener('mousedown', (e) => {
                 if (e.target.closest('.control-zone') || e.target.closest('#start-screen')) return;
                 
@@ -607,13 +623,13 @@
             // --- Mobile Events ---
             const joyZone = document.getElementById('joystick-zone');
             const joyThumb = document.getElementById('joystick-thumb');
-            const lookZone = document.getElementById('look-zone'); // Full screen
+            const lookZone = document.getElementById('look-zone'); 
             const fireBtn = DOM.fireBtn;
 
-            // FIRE BTN - Auto Fire Logic
+            // FIRE BTN
             const handleFireStart = (e) => {
                 e.preventDefault();
-                e.stopPropagation(); // Stop from bubbling to look zone
+                e.stopPropagation();
                 try { e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId); } catch (err) {}
                 if (gameActive) isFiring = true;
             };
@@ -629,7 +645,6 @@
             // JOYSTICK
             const handleJoystickPointer = (ev) => {
                 ev.preventDefault();
-                // Stop propagation so Look Zone doesn't move camera while joystick is moving
                 ev.stopPropagation(); 
                 const p = ev;
                 if (p.pointerType === 'touch' || p.pointerType === 'pen' || p.pointerType === 'mouse') {
@@ -639,13 +654,13 @@
 
             joyZone.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
-                e.stopPropagation(); // Important: Don't trigger look
+                e.stopPropagation(); 
                 joyZone.setPointerCapture && joyZone.setPointerCapture(e.pointerId);
                 handleJoystickPointer(e);
             }, { passive: false });
 
             joyZone.addEventListener('pointermove', (e) => {
-                e.stopPropagation(); // Important
+                e.stopPropagation(); 
                 if (e.buttons === 0 && e.pointerType === 'mouse') return;
                 handleJoystickPointer(e);
             }, { passive: false });
@@ -657,10 +672,8 @@
                 joyThumb.style.transform = `translate(-50%, -50%)`;
             }, { passive: false });
 
-            // LOOK ZONE - Now covers full screen, behind other controls
+            // LOOK ZONE
             lookZone.addEventListener('pointerdown', (e) => {
-                // If we clicked a button (z-index higher) the event shouldn't reach here if propagated stopped
-                // But just in case, we trust z-index ordering and stopPropagation in buttons
                 lastTouchX = e.clientX;
                 lastTouchY = e.clientY;
             }, { passive: true });
@@ -718,7 +731,6 @@
             targets.forEach(t => scene.remove(t));
             targets = [];
 
-            // Spawn more targets for "scattering"
             for (let i = 0; i < 10; i++) spawnTarget();
 
             const timerInterval = setInterval(() => {
@@ -779,7 +791,6 @@
             if (now - lastShotTime < fireRate) return;
             lastShotTime = now;
 
-            // Recoil
             camera.rotation.x += 0.02;
             gunGroup.position.z += 0.2;
 
@@ -818,7 +829,7 @@
         function reload() {
             if (isReloading) return;
             isReloading = true;
-            isFiring = false; // Stop firing
+            isFiring = false; 
             DOM.ammoText.textContent = "RELOADING...";
             gunGroup.rotation.x = -0.5;
 
@@ -878,17 +889,14 @@
             const time = performance.now();
             const delta = (time - prevTime) / 1000;
 
-            // Automatic Fire Check
             if (isFiring) shoot();
 
             velocity.x -= velocity.x * 10.0 * delta;
             velocity.z -= velocity.z * 10.0 * delta;
 
-            // FIX: Swapped forward/back logic so W moves forward
             let inputZ = Number(moveBackward) - Number(moveForward);
             let inputX = Number(moveRight) - Number(moveLeft);
 
-            // Joystick math
             if (Math.abs(joyVector.y) > 0.12) inputZ += joyVector.y;
             if (Math.abs(joyVector.x) > 0.12) inputX += joyVector.x;
 
@@ -903,16 +911,29 @@
             if (inputX !== 0) velocity.x -= direction.x * 100.0 * delta;
 
             if (isLocked || inputZ !== 0 || inputX !== 0) {
-                camera.translateX(-velocity.x * delta);
-                camera.translateZ(-velocity.z * delta);
+                // --- NEW Collision Handling ---
+                // Calculate desired move in World Space
+                const moveVec = new THREE.Vector3(-velocity.x * delta, 0, -velocity.z * delta);
+                moveVec.applyQuaternion(camera.quaternion);
+                moveVec.y = 0; // Keep movement flat
+
+                // Try X Movement
+                camera.position.x += moveVec.x;
+                if (checkPlayerCollision()) {
+                    camera.position.x -= moveVec.x; // Revert X
+                    velocity.x = 0; // Kill momentum on hit
+                }
+
+                // Try Z Movement
+                camera.position.z += moveVec.z;
+                if (checkPlayerCollision()) {
+                    camera.position.z -= moveVec.z; // Revert Z
+                    velocity.z = 0; // Kill momentum on hit
+                }
             }
 
-            // Clamp Player within map walls (simple box clamp)
-            camera.position.x = Math.max(-38, Math.min(38, camera.position.x));
-            camera.position.z = Math.max(-38, Math.min(38, camera.position.z));
             camera.position.y = 1.6;
 
-            // Gun recoil return
             gunGroup.position.z += (-0.5 - gunGroup.position.z) * 10 * delta;
             gunGroup.rotation.y = -velocity.x * 0.005;
             gunGroup.rotation.x = -velocity.z * 0.005;
@@ -928,7 +949,6 @@
                 target.rotation.x += 0.5 * delta;
             });
 
-            // Refill targets
             if (gameActive && targets.length < 8) {
                 if (Math.random() < 0.1) spawnTarget();
             }
