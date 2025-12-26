@@ -3,232 +3,832 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LCG Pattern Visualizer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>advanced system benchmark suite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400&display=swap" rel="stylesheet">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background-color: #111827; /* gray-900 */
-            color: #e5e7eb; /* gray-200 */
-            font-family: 'Courier New', Courier, monospace;
+            font-family: 'Google Sans', sans-serif;
+            background: #0a0a0a;
+            color: #666;
+            padding: 40px 20px;
+            overflow-x: hidden;
         }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .header h1 {
+            color: #888;
+            font-size: 1.8em;
+            margin-bottom: 8px;
+            font-weight: 400;
+        }
+
+        .header p {
+            color: #444;
+            font-size: 0.9em;
+            font-weight: 400;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 50px;
+        }
+
+        button {
+            padding: 12px 35px;
+            font-size: 0.95em;
+            border: 1px solid #222;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 400;
+            font-family: 'Google Sans', sans-serif;
+            background: #111;
+            color: #666;
+        }
+
+        .start-btn:hover {
+            background: #1a1a1a;
+            border-color: #333;
+            color: #888;
+        }
+
+        .start-btn:disabled {
+            background: #0a0a0a;
+            color: #333;
+            cursor: not-allowed;
+            border-color: #1a1a1a;
+        }
+
+        .stop-btn:hover {
+            background: #1a1a1a;
+            border-color: #333;
+        }
+
+        .overall-score {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 30px;
+            background: #111;
+            border-radius: 4px;
+            border: 1px solid #1a1a1a;
+        }
+
+        .overall-score h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            font-weight: 400;
+        }
+
+        .score-value {
+            font-size: 3em;
+            color: #888;
+            font-weight: 400;
+        }
+
+        .timer {
+            color: #444;
+            font-size: 0.9em;
+            margin-top: 15px;
+            font-weight: 400;
+        }
+
+        .benchmark-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .benchmark-card {
+            background: #111;
+            border-radius: 4px;
+            padding: 20px;
+            border: 1px solid #1a1a1a;
+            transition: all 0.2s;
+        }
+
+        .benchmark-card:hover {
+            border-color: #222;
+        }
+
+        .benchmark-card.running {
+            border-color: #2a2a2a;
+        }
+
+        .benchmark-title {
+            color: #666;
+            font-size: 0.95em;
+            margin-bottom: 10px;
+            font-weight: 400;
+        }
+
+        .benchmark-status {
+            color: #444;
+            margin-bottom: 10px;
+            font-size: 0.85em;
+            font-weight: 400;
+        }
+
+        .benchmark-score {
+            color: #888;
+            font-size: 2em;
+            font-weight: 400;
+            margin: 10px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 2px;
+            background: #1a1a1a;
+            border-radius: 1px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #333;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .benchmark-details {
+            font-size: 0.85em;
+            color: #555;
+            margin-top: 15px;
+            line-height: 1.6;
+        }
+
         canvas {
-            image-rendering: pixelated; /* Keeps pixels sharp at low res */
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            width: 100%;
+            height: 100px;
+            border-radius: 4px;
+            margin-top: 15px;
+            background: #0a0a0a;
         }
-        .monitor-text {
-            text-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            color: #555;
+        }
+
+        .metric-label {
+            color: #444;
+            font-weight: 400;
+        }
+
+        .metric-value {
+            color: #666;
+            font-weight: 400;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
-
-    <!-- Header -->
-    <div class="text-center mb-6">
-        <h1 class="text-3xl md:text-4xl font-bold mb-2 text-green-400 monitor-text">LCG Visualizer</h1>
-        <p class="text-sm text-gray-400">Linear Congruential Generator Texture Mapper</p>
+<body>
+    <div class="header">
+        <h1>advanced system benchmark suite</h1>
+        <p>16 concurrent stress tests / 60 second duration</p>
     </div>
 
-    <!-- Main Container -->
-    <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-2xl max-w-full w-auto flex flex-col items-center gap-6">
-        
-        <!-- Canvas Wrapper -->
-        <div class="relative group">
-            <canvas id="canvas" width="256" height="256" class="bg-black rounded border-2 border-gray-600 cursor-pointer"></canvas>
-            <div class="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-75 text-xs px-2 py-1 rounded pointer-events-none">
-                Click to Regenerate
-            </div>
-        </div>
-
-        <!-- Controls & Info -->
-        <div class="w-full max-w-md space-y-4">
-            
-            <!-- Parameters Display -->
-            <div class="bg-black bg-opacity-50 p-4 rounded border border-gray-600 font-mono text-xs md:text-sm">
-                <div class="flex justify-between items-center mb-2 border-b border-gray-700 pb-2">
-                    <span class="text-green-500 font-bold">Formula:</span>
-                    <span class="text-gray-300">X<sub>n+1</sub> = (aX<sub>n</sub> + c) % m</span>
-                </div>
-                <div class="grid grid-cols-2 gap-y-1">
-                    <span class="text-gray-400">Modulus (m):</span>
-                    <span id="val-m" class="text-right text-blue-400">65536</span>
-                    
-                    <span class="text-gray-400">Multiplier (a):</span>
-                    <span id="val-a" class="text-right text-yellow-400">--</span>
-                    
-                    <span class="text-gray-400">Increment (c):</span>
-                    <span id="val-c" class="text-right text-pink-400">--</span>
-                    
-                    <span class="text-gray-400">Seed (X<sub>0</sub>):</span>
-                    <span id="val-seed" class="text-right text-white">--</span>
-                </div>
-            </div>
-
-            <!-- Inputs -->
-            <div class="flex flex-col sm:flex-row gap-3">
-                <div class="flex-1">
-                    <label class="block text-xs text-gray-500 mb-1 uppercase tracking-wider">Grid Size</label>
-                    <select id="gridSize" class="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 focus:outline-none focus:border-green-500 transition-colors">
-                        <option value="32">32 x 32 (Micro)</option>
-                        <option value="64">64 x 64 (Tiny)</option>
-                        <option value="128">128 x 128 (Small)</option>
-                        <option value="256" selected>256 x 256 (Standard)</option>
-                        <option value="512">512 x 512 (Large)</option>
-                        <option value="1024">1024 x 1024 (HD)</option>
-                    </select>
-                </div>
-                <div class="flex-1">
-                    <label class="block text-xs text-gray-500 mb-1 uppercase tracking-wider">Action</label>
-                    <button id="generateBtn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded transition-colors shadow-lg active:transform active:scale-95">
-                        New Pattern
-                    </button>
-                </div>
-            </div>
-        </div>
+    <div class="controls">
+        <button class="start-btn" id="startBtn" onclick="startBenchmark()">start benchmark</button>
+        <button class="stop-btn" id="stopBtn" onclick="stopBenchmark()" disabled>stop benchmark</button>
     </div>
 
-    <!-- Explanation -->
-    <div class="max-w-xl mt-8 text-gray-400 text-xs md:text-sm text-center leading-relaxed">
-        <p>
-            The grid visualizes the sequence of numbers generated by the LCG algorithm. 
-            Each pixel corresponds to one iteration. <br>
-            <span class="text-gray-300">Darker pixels</span> represent values closer to <strong>m</strong>.
-            <span class="text-gray-300">Lighter pixels</span> represent values closer to <strong>0</strong>.
-            We use the Hull-Dobell Theorem to select random multipliers that guarantee a "Full Period," meaning every unique gray value appears exactly once.
-        </p>
+    <div class="overall-score">
+        <h2>overall performance score</h2>
+        <div class="score-value" id="overallScore">0</div>
+        <div class="timer" id="timer">time: 0.0s / 60.0s</div>
     </div>
+
+    <div class="benchmark-grid" id="benchmarkGrid"></div>
 
     <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const generateBtn = document.getElementById('generateBtn');
-        const gridSizeSelect = document.getElementById('gridSize');
+        const DURATION = 60000;
+        let startTime;
+        let running = false;
+        let animationFrames = [];
+        let intervals = [];
+        let scores = {};
 
-        // UI Elements
-        const valM = document.getElementById('val-m');
-        const valA = document.getElementById('val-a');
-        const valC = document.getElementById('val-c');
-        const valSeed = document.getElementById('val-seed');
+        const benchmarks = [
+            {
+                id: 'fibonacci',
+                title: 'fibonacci calculator',
+                test: fibonacciTest,
+                unit: 'calculations/s'
+            },
+            {
+                id: 'primes',
+                title: 'prime number generator',
+                test: primeTest,
+                unit: 'primes/s'
+            },
+            {
+                id: 'matrix',
+                title: 'matrix multiplication',
+                test: matrixTest,
+                unit: 'operations/s'
+            },
+            {
+                id: 'sorting',
+                title: 'advanced sorting',
+                test: sortingTest,
+                unit: 'sorts/s'
+            },
+            {
+                id: 'crypto',
+                title: 'cryptographic hashing',
+                test: cryptoTest,
+                unit: 'hashes/s'
+            },
+            {
+                id: 'canvas2d',
+                title: 'canvas 2d rendering',
+                test: canvas2DTest,
+                unit: 'fps'
+            },
+            {
+                id: 'canvas3d',
+                title: 'canvas 3d animation',
+                test: canvas3DTest,
+                unit: 'fps'
+            },
+            {
+                id: 'dom',
+                title: 'dom manipulation',
+                test: domTest,
+                unit: 'operations/s'
+            },
+            {
+                id: 'string',
+                title: 'string processing',
+                test: stringTest,
+                unit: 'operations/s'
+            },
+            {
+                id: 'regex',
+                title: 'regex pattern matching',
+                test: regexTest,
+                unit: 'matches/s'
+            },
+            {
+                id: 'recursion',
+                title: 'deep recursion',
+                test: recursionTest,
+                unit: 'calls/s'
+            },
+            {
+                id: 'memory',
+                title: 'memory allocation',
+                test: memoryTest,
+                unit: 'mb/s'
+            },
+            {
+                id: 'json',
+                title: 'json processing',
+                test: jsonTest,
+                unit: 'operations/s'
+            },
+            {
+                id: 'array',
+                title: 'array operations',
+                test: arrayTest,
+                unit: 'operations/s'
+            },
+            {
+                id: 'particles',
+                title: 'particle system',
+                test: particleTest,
+                unit: 'particles/s'
+            },
+            {
+                id: 'raycast',
+                title: 'ray casting',
+                test: raycastTest,
+                unit: 'rays/s'
+            }
+        ];
 
-        let width, height, m;
-
-        // Generate a random integer between min and max (inclusive)
-        function getRandomInt(min, max) {
-            return Math.floor(Math.random() * (max - min + 1)) + min;
+        function initBenchmarks() {
+            const grid = document.getElementById('benchmarkGrid');
+            benchmarks.forEach(b => {
+                const card = document.createElement('div');
+                card.className = 'benchmark-card';
+                card.id = `card-${b.id}`;
+                card.innerHTML = `
+                    <div class="benchmark-title">${b.title}</div>
+                    <div class="benchmark-status" id="status-${b.id}">ready</div>
+                    <div class="benchmark-score" id="score-${b.id}">0</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-${b.id}"></div>
+                    </div>
+                    <canvas id="canvas-${b.id}"></canvas>
+                    <div class="benchmark-details">
+                        <div class="metric">
+                            <span class="metric-label">unit:</span>
+                            <span class="metric-value">${b.unit}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">iterations:</span>
+                            <span class="metric-value" id="iter-${b.id}">0</span>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+                scores[b.id] = 0;
+            });
         }
 
-        // Greatest Common Divisor
-        function gcd(a, b) {
-            return b === 0 ? a : gcd(b, a % b);
-        }
-
-        // Generate LCG Parameters
-        // We want a full period LCG, so we follow Hull-Dobell Theorem for m = power of 2
-        function generateParams() {
-            // 1. Determine M based on grid size
-            const dimension = parseInt(gridSizeSelect.value);
-            width = dimension;
-            height = dimension;
-            m = width * height;
-
-            // 2. Generate 'c' (Increment)
-            // Hull-Dobell: c and m must be relatively prime.
-            // Since m is a power of 2, c must just be odd.
-            let c = getRandomInt(1, m - 1);
-            if (c % 2 === 0) c += 1; // Ensure odd
-
-            // 3. Generate 'a' (Multiplier)
-            // Hull-Dobell: a - 1 must be divisible by all prime factors of m.
-            // Since m is power of 2, a-1 must be divisible by 2.
-            // Also, if m is multiple of 4 (which it is for any grid >= 2x2), a-1 must be divisible by 4.
-            // So, a = 4k + 1.
+        function startBenchmark() {
+            running = true;
+            startTime = Date.now();
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
             
-            // We'll pick a random k.
-            // If k is too small, we get simple visible stripes.
-            // If k is large and random, we get noise.
-            // Let's create a mix of possibilities.
-            const maxK = Math.floor((m - 1) / 4);
-            const k = getRandomInt(1, maxK); 
-            const a = 1 + 4 * k;
+            benchmarks.forEach(b => {
+                document.getElementById(`card-${b.id}`).classList.add('running');
+                document.getElementById(`status-${b.id}`).textContent = 'running...';
+                b.test(b.id);
+            });
 
-            // 4. Random seed
-            const seed = getRandomInt(0, m - 1);
-
-            return { a, c, m, seed };
+            updateTimer();
         }
 
-        function renderLCG() {
-            const params = generateParams();
+        function stopBenchmark() {
+            running = false;
+            animationFrames.forEach(id => cancelAnimationFrame(id));
+            intervals.forEach(id => clearInterval(id));
+            animationFrames = [];
+            intervals = [];
             
-            // Update UI
-            valM.textContent = params.m.toLocaleString();
-            valA.textContent = params.a.toLocaleString();
-            valC.textContent = params.c.toLocaleString();
-            valSeed.textContent = params.seed.toLocaleString();
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            
+            benchmarks.forEach(b => {
+                document.getElementById(`card-${b.id}`).classList.remove('running');
+                document.getElementById(`status-${b.id}`).textContent = 'completed';
+            });
 
-            // Resize Canvas Display
-            // We use CSS to make it look big, but internal resolution matches the grid
-            canvas.width = width;
-            canvas.height = height;
+            calculateOverallScore();
+        }
 
-            // For larger grids, limit the CSS max-width to keep it on screen
-            if (width > 512) {
-                canvas.style.width = '100%';
-                canvas.style.maxWidth = '600px';
-                canvas.style.height = 'auto';
+        function updateTimer() {
+            if (!running) return;
+            
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / DURATION * 100, 100);
+            document.getElementById('timer').textContent = 
+                `time: ${(elapsed/1000).toFixed(1)}s / 60.0s`;
+
+            benchmarks.forEach(b => {
+                document.getElementById(`progress-${b.id}`).style.width = progress + '%';
+            });
+
+            if (elapsed >= DURATION) {
+                stopBenchmark();
             } else {
-                canvas.style.width = '';
-                canvas.style.height = '';
-                canvas.style.maxWidth = '';
+                requestAnimationFrame(updateTimer);
             }
-
-            // Create Image Data
-            const imageData = ctx.createImageData(width, height);
-            const data = imageData.data;
-
-            let x = params.seed;
-            const a = params.a;
-            const c = params.c;
-            const mod = params.m;
-
-            // Pre-calculate inverse m for speed
-            const invM = 255 / mod;
-
-            for (let i = 0; i < mod; i++) {
-                // Generate next number
-                // Standard LCG: X_n+1 = (aX_n + c) % m
-                // Note: using BigInt is safer for very large numbers, 
-                // but standard JS numbers (doubles) are safe integers up to 2^53.
-                // Our max m is 1024*1024 = 2^20 approx 1 million.
-                // a * x can be approx m * m = 2^40. 
-                // 2^40 < 2^53, so regular math is fine.
-                
-                x = (a * x + c) % mod;
-
-                // Calculate color
-                // User requirement: "higher numbers (near the module) are darker"
-                // Value 0 -> Light (255)
-                // Value m -> Dark (0)
-                const intensity = 255 - Math.floor(x * invM);
-
-                // Pixel index in imageData array (4 values per pixel: r,g,b,a)
-                const index = i * 4;
-
-                data[index] = intensity;     // Red
-                data[index + 1] = intensity; // Green
-                data[index + 2] = intensity; // Blue
-                data[index + 3] = 255;       // Alpha (Opaque)
-            }
-
-            ctx.putImageData(imageData, 0, 0);
         }
 
-        // Event Listeners
-        generateBtn.addEventListener('click', renderLCG);
-        canvas.addEventListener('click', renderLCG);
-        
-        // Initial Render
-        renderLCG();
+        function updateScore(id, score, iterations) {
+            scores[id] = score;
+            document.getElementById(`score-${id}`).textContent = Math.round(score);
+            document.getElementById(`iter-${id}`).textContent = iterations;
+            calculateOverallScore();
+        }
 
+        function calculateOverallScore() {
+            const total = Object.values(scores).reduce((a, b) => a + b, 0);
+            const avg = total / benchmarks.length;
+            document.getElementById('overallScore').textContent = Math.round(avg);
+        }
+
+        function fibonacciTest(id) {
+            let iterations = 0;
+            const interval = setInterval(() => {
+                if (!running) return;
+                let ops = 0;
+                const start = performance.now();
+                while (performance.now() - start < 100) {
+                    fibonacci(20);
+                    ops++;
+                }
+                iterations += ops;
+                updateScore(id, ops * 10, iterations);
+            }, 100);
+            intervals.push(interval);
+        }
+
+        function fibonacci(n) {
+            if (n <= 1) return n;
+            return fibonacci(n - 1) + fibonacci(n - 2);
+        }
+
+        function primeTest(id) {
+            let iterations = 0;
+            const interval = setInterval(() => {
+                if (!running) return;
+                let primes = 0;
+                const start = performance.now();
+                let n = 2;
+                while (performance.now() - start < 100) {
+                    if (isPrime(n)) primes++;
+                    n++;
+                }
+                iterations += primes;
+                updateScore(id, primes * 10, iterations);
+            }, 100);
+            intervals.push(interval);
+        }
+
+        function isPrime(n) {
+            if (n < 2) return false;
+            for (let i = 2; i <= Math.sqrt(n); i++) {
+                if (n % i === 0) return false;
+            }
+            return true;
+        }
+
+        function matrixTest(id) {
+            let iterations = 0;
+            const interval = setInterval(() => {
+                if (!running) return;
+                let ops = 0;
+                const start = performance.now();
+                while (performance.now() - start < 100) {
+                    const a = Array(20).fill().map(() => Array(20).fill(Math.random()));
+                    const b = Array(20).fill().map(() => Array(20).fill(Math.random()));
+                    multiplyMatrices(a, b);
+                    ops++;
+                }
+                iterations += ops;
+                updateScore(id, ops * 10, iterations);
+            }, 100);
+            intervals.push(interval);
+        }
+
+        function multiplyMatrices(a, b) {
+            const result = [];
+            for (let i = 0; i < a.length; i++) {
+                result[i] = [];
+                for (let j = 0; j < b[0].length; j++) {
+                    let sum = 0;
+                    for (let k = 0; k < a[0].length; k++) {
+                        sum += a[i][k] * b[k][j];
+                    }
+                    result[i][j] = sum;
+                }
+            }
+            return result;
+        }
+
+        function sortingTest(id) {
+            let iterations = 0;
+            const interval = setInterval(() => {
+                if (!running) return;
+                let ops = 0;
+                const start = performance.now();
+                while (performance.now() - start < 100) {
+                    const arr = Array(1000).fill().map(() => Math.random());
+                    arr.sort((a, b) => a - b);
+                    ops++;
+                }
+                iterations += ops;
+                updateScore(id, ops * 10, iterations);
+            }, 100);
+            intervals.push(interval);
+        }
+
+        function cryptoTest(id) {
+            let iterations = 0;
+            const interval = setInterval(() => {
+                if (!running) return;
+                let hashes = 0;
+                const start = performance.now();
+                while (performance.now() - start < 100) {
+                    simpleHash(Math.random().toString());
+                    hashes++;
+                }
+                iterations += hashes;
+                updateScore(id, hashes * 10, iterations);
+            }, 100);
+            intervals.push(interval);
+        }
+
+        function simpleHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return hash;
+        }
+
+        function canvas2DTest(id) {
+            const canvas = document.getElementById(`canvas-${id}`);
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = 100;
+            let frames = 0;
+            let lastTime = performance.now();
+            let iterations = 0;
+
+            function animate() {
+                if (!running) return;
+                
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                for (let i = 0; i < 50; i++) {
+                    const gray = 30 + (i * 2);
+                    ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
+                    ctx.beginPath();
+                    ctx.arc(
+                        (Date.now() / 10 + i * 20) % canvas.width,
+                        50 + Math.sin(Date.now() / 200 + i) * 30,
+                        8, 0, Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+                
+                frames++;
+                iterations++;
+                const now = performance.now();
+                if (now - lastTime >= 1000) {
+                    updateScore(id, frames, iterations);
+                    frames = 0;
+                    lastTime = now;
+                }
+                
+                animationFrames.push(requestAnimationFrame(animate));
+            }
+            animate();
+        }
+
+        function canvas3DTest(id) {
+            const canvas = document.getElementById(`canvas-${id}`);
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = 100;
+            let frames = 0;
+            let lastTime = performance.now();
+            let iterations = 0;
+
+            function animate() {
+                if (!running) return;
+                
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                const time = Date.now() / 1000;
+                for (let i = 0; i < 30; i++) {
+                    const angle = time + i * 0.2;
+                    const x = canvas.width / 2 + Math.cos(angle) * (40 + i * 2);
+                    const y = canvas.height / 2 + Math.sin(angle) * (25 + i * 2);
+                    const z = Math.sin(time + i * 0.1) * 50 + 100;
+                    const scale = 200 / (200 + z);
+                    const gray = Math.floor(30 + scale * 70);
+                    
+                    ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4 * scale, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                frames++;
+                iterations++;
+                const now = performance.now();
+                if (now - lastTime >= 1000) {
+                    updateScore(id, frames, iterations);
+                    frames = 0;
+                    lastTime = now;
+                }
+                
+                animationFrames.push(requestAnimationFrame(animate));
+            }
+            animate();
+        }
+
+        function domTest(id) {
+            let iterations = 0;
+            const interval = setInterval(() => {
+                if (!running) return;
+                let ops = 0;
+                const start = performance.now();
+                const container = document.createElement('div');
+                while (performance.now() - start < 100) {
+                    for (let i = 0; i < 10; i++) {
+                        const el = document.createElement('div');
+                        el.textContent = Math.random();
+                        container.appendChild(el);
+                    }
+                    container.innerHTML = '';
+                    ops += 10;
+                }
+                iterations += ops;
+                updateScore(id, ops * 10, iterations);
+            }, 100);
+            intervals.push(interval);
+        }
+
+        function stringTest(id) {
+            let iterations = 0;
+            const interval = setInterval(() => {
+                if (!running) return;
+                let ops = 0;
+                const start = performance.now();
+                while (performance.now() - start < 100) {
+                    let str = 'benchmark';
+                    str = str.repeat(100).toUpperCase().split('').reverse().join('');
+                    ops++;
+                }
+                iterations += ops;
+                updateScore(id, ops * 10, iterations);
+            }, 100);
+            intervals.push(interval);
+        }
+
+        function regexTest(id) {
+            let iterations = 0;
+            const text = 'benchmark'.repeat(1000);
+            const interval = setInterval(() => {
+                if (!running) return;
+                let matches = 0;
+                const start = performance.now();
+                while (performance.now() - start < 100) {
+                    const result = text.match(/bench|mark|test/g);
+                    matches += result ? result.length : 0;
+                }
+                iterations += matches;
+                updateScore(id, matches / 100, iterations);
+            }, 100);
+            intervals.push(interval);
+        }
+
+        function recursionTest(id) {
+            let iterations = 0;
+            const interval = setInterval(() => {
+                if (!running) return;
+                let calls = 0;
+                const start = performance.now();
+                while (performance.now() - start < 100) {
+                    deepRecursion(100);
+                    calls += 100;
+                }
+                iterations += calls;
+                updateScore(id, calls * 10, iterations);
+            }, 100);
+            intervals.push(interval);
+        }
+
+        function deepRecursion(n) {
+            if (n <= 0) return 1;
+            return n * deepRecursion(n - 1) / n;
+        }
+
+        function memoryTest(id) {
+            let iterations = 0;
+            const interval = setInterval(() => {
+                if (!running) return;
+                let mb = 0;
+                const start = performance.now();
+                while (performance.now() - start < 100) {
+                    const arr = new Array(10000).fill(Math.random());
+                    mb += arr.length * 8 / 1024 / 1024;
+                }
+                iterations += mb;
+                updateScore(id, mb * 10, Math.round(iterations));
+            }, 100);
+            intervals.push(interval);
+        }
+
+        function jsonTest(id) {
+            let iterations = 0;
+            const interval = setInterval(() => {
+                if (!running) return;
+                let ops = 0;
+                const start = performance.now();
+                while (performance.now() - start < 100) {
+                    const obj = {a: 1, b: 2, c: [1,2,3], d: {e: 4}};
+                    JSON.stringify(obj);
+                    JSON.parse(JSON.stringify(obj));
+                    ops++;
+                }
+                iterations += ops;
+                updateScore(id, ops * 10, iterations);
+            }, 100);
+            intervals.push(interval);
+        }
+
+        function arrayTest(id) {
+            let iterations = 0;
+            const interval = setInterval(() => {
+                if (!running) return;
+                let ops = 0;
+                const start = performance.now();
+                while (performance.now() - start < 100) {
+                    const arr = Array(1000).fill(0).map((_, i) => i);
+                    arr.filter(x => x % 2).map(x => x * 2).reduce((a, b) => a + b, 0);
+                    ops++;
+                }
+                iterations += ops;
+                updateScore(id, ops * 10, iterations);
+            }, 100);
+            intervals.push(interval);
+        }
+
+        function particleTest(id) {
+            const canvas = document.getElementById(`canvas-${id}`);
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = 100;
+            
+            const particles = Array(100).fill().map(() => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2
+            }));
+            
+            let frames = 0;
+            let lastTime = performance.now();
+            let iterations = 0;
+
+            function animate() {
+                if (!running) return;
+                
+                ctx.fillStyle = 'rgba(10, 10, 10, 0.1)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                    
+                    ctx.fillStyle = '#444';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                
+                frames++;
+                iterations += particles.length;
+                const now = performance.now();
+                if (now - lastTime >= 1000) {
+                    updateScore(id, frames * particles.length, iterations);
+                    frames = 0;
+                    lastTime = now;
+                }
+                
+                animationFrames.push(requestAnimationFrame(animate));
+            }
+            animate();
+        }
+
+        function raycastTest(id) {
+            let iterations = 0;
+            const interval = setInterval(() => {
+                if (!running) return;
+                let rays = 0;
+                const start = performance.now();
+                while (performance.now() - start < 100) {
+                    for (let i = 0; i < 100; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const dx = Math.cos(angle);
+                        const dy = Math.sin(angle);
+                        let x = 0, y = 0;
+                        for (let step = 0; step < 50; step++) {
+                            x += dx;
+                            y += dy;
+                        }
+                        rays++;
+                    }
+                }
+                iterations += rays;
+                updateScore(id, rays * 10, iterations);
+            }, 100);
+            intervals.push(interval);
+        }
+
+        initBenchmarks();
     </script>
 </body>
 </html>
