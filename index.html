@@ -107,7 +107,7 @@
 
         .overall-score {
             text-align: center;
-            margin-bottom: 50px;
+            margin-bottom: 20px;
             padding: 40px;
             background: linear-gradient(180deg, #0f0f0f 0%, #050505 100%);
             border-radius: 12px;
@@ -130,6 +130,74 @@
             font-size: 0.9em;
             margin-top: 15px;
             font-weight: 500;
+        }
+
+        /* Comparison Table Styles */
+        .comparison-wrapper {
+            max-width: 800px;
+            margin: 0 auto 50px auto;
+            border: 1px solid #1a1a1a;
+            border-radius: 8px;
+            background: #080808;
+            overflow: hidden;
+        }
+
+        .comparison-header {
+            padding: 15px 20px;
+            background: #0c0c0c;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .comparison-header:hover {
+            background: #111;
+        }
+
+        .comparison-content {
+            padding: 20px;
+            display: none;
+            background: #080808;
+        }
+
+        .comparison-content.expanded {
+            display: block;
+        }
+
+        .comp-row {
+            margin-bottom: 15px;
+        }
+
+        .comp-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8em;
+            margin-bottom: 6px;
+            color: #444;
+        }
+
+        .comp-bar-bg {
+            height: 6px;
+            background: #111;
+            border-radius: 3px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .comp-bar-fill {
+            height: 100%;
+            background: #333;
+            width: 0%;
+            border-radius: 3px;
+            transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .comp-bar-fill.user-bar {
+            background: #666;
+            box-shadow: 0 0 10px rgba(100, 100, 100, 0.2);
         }
 
         .benchmark-grid {
@@ -191,7 +259,7 @@
             height: 60px;
             background: #080808;
             border: 1px solid #161616;
-            opacity: 0.4;
+            opacity: 0.3;
             margin-bottom: 10px;
         }
 
@@ -207,7 +275,7 @@
 <body>
     <div class="header">
         <h1>Advanced System Benchmark</h1>
-        <p>Unrestricted Stress Test / 0.75s Rolling Update</p>
+        <p>Unrestricted Stress Test / Integrated Comparison Analytics</p>
     </div>
 
     <div class="controls">
@@ -221,12 +289,22 @@
         <div class="timer" id="timer">0.0s / 60.0s</div>
     </div>
 
+    <div class="comparison-wrapper">
+        <div class="comparison-header" onclick="toggleComparison()">
+            <span>Hardware Comparison (Estimated)</span>
+            <span id="expandIcon">expand [+]</span>
+        </div>
+        <div class="comparison-content" id="compContent">
+            <!-- Bars will be populated here -->
+        </div>
+    </div>
+
     <div class="benchmark-grid" id="benchmarkGrid"></div>
 
     <script>
         const DURATION = 60000;
         const VISUAL_UPDATE_INTERVAL = 750; 
-        const CALC_CHUNK_MS = 100; // How long to run a calculation block
+        const CALC_CHUNK_MS = 100;
 
         let startTime;
         let running = false;
@@ -236,6 +314,15 @@
         
         let scores = {};
         let iterations = {};
+
+        // Reference benchmarks for the comparison table
+        const referenceTiers = [
+            { name: "Vintage Desktop (Core 2 Duo)", score: 2500000 },
+            { name: "Modern Ultra-Thin (i5-1235U)", score: 8500000 },
+            { name: "Performance Workstation (M2 Pro)", score: 14000000 },
+            { name: "High-End Gaming (i9-14900K)", score: 21000000 },
+            { name: "Enterprise Server (Dual EPYC)", score: 35000000 }
+        ];
 
         const benchmarks = [
             { id: 'fib', title: 'fibonacci recursion', test: fibTest, unit: 'ops/s' },
@@ -250,11 +337,17 @@
             { id: 'json', title: 'json serialization', test: jsonTest, unit: 'ops/s' }
         ];
 
+        function toggleComparison() {
+            const content = document.getElementById('compContent');
+            const icon = document.getElementById('expandIcon');
+            content.classList.toggle('expanded');
+            icon.textContent = content.classList.contains('expanded') ? 'collapse [-]' : 'expand [+]';
+        }
+
         function updateSlotValue(elementId, value) {
             const container = document.getElementById(elementId);
             const strValue = Math.floor(value).toLocaleString();
             
-            // Adjust number of columns
             if (container.children.length !== strValue.length) {
                 container.innerHTML = '';
                 for (let char of strValue) {
@@ -268,7 +361,6 @@
                         slot.className = 'slot-container';
                         const ribbon = document.createElement('div');
                         ribbon.className = 'slot-ribbon';
-                        // 0-9 digits
                         for (let i = 0; i <= 9; i++) {
                             const d = document.createElement('div');
                             d.className = 'slot-digit';
@@ -281,7 +373,6 @@
                 }
             }
 
-            // Animate ribbons
             const children = Array.from(container.children);
             let strIdx = 0;
             children.forEach((child) => {
@@ -294,9 +385,38 @@
             });
         }
 
+        function initComparison() {
+            const container = document.getElementById('compContent');
+            // Add user bar at top
+            const userRow = document.createElement('div');
+            userRow.className = 'comp-row';
+            userRow.innerHTML = `
+                <div class="comp-info">
+                    <span>Current System (You)</span>
+                    <span id="userCompVal">0</span>
+                </div>
+                <div class="comp-bar-bg"><div class="comp-bar-fill user-bar" id="userCompBar"></div></div>
+            `;
+            container.appendChild(userRow);
+
+            referenceTiers.forEach(tier => {
+                const row = document.createElement('div');
+                row.className = 'comp-row';
+                row.innerHTML = `
+                    <div class="comp-info">
+                        <span>${tier.name}</span>
+                        <span>${tier.score.toLocaleString()}</span>
+                    </div>
+                    <div class="comp-bar-bg"><div class="comp-bar-fill" style="width: ${Math.min(100, (tier.score/35000000)*100)}%"></div></div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
         function init() {
             const grid = document.getElementById('benchmarkGrid');
             updateSlotValue('overallScore', 0);
+            initComparison();
 
             benchmarks.forEach(b => {
                 const card = document.createElement('div');
@@ -334,7 +454,15 @@
                     document.getElementById(`iter-${b.id}`).textContent = Math.floor(iterations[b.id]).toLocaleString();
                 });
                 const total = Object.values(scores).reduce((a, b) => a + b, 0);
-                updateSlotValue('overallScore', total / benchmarks.length);
+                const avg = total / benchmarks.length;
+                updateSlotValue('overallScore', avg);
+
+                // Update Comparison Graph
+                const userBar = document.getElementById('userCompBar');
+                const userVal = document.getElementById('userCompVal');
+                const maxVal = 35000000;
+                userBar.style.width = Math.min(100, (avg / maxVal) * 100) + '%';
+                userVal.textContent = Math.floor(avg).toLocaleString();
             }, VISUAL_UPDATE_INTERVAL);
 
             requestAnimationFrame(updateLoop);
@@ -365,7 +493,7 @@
             });
         }
 
-        // --- STRESS TESTS ---
+        // --- STRESS TESTS (Restored High-Intensity) ---
 
         function fibTest(id) {
             let total = 0;
@@ -374,13 +502,12 @@
                 let count = 0;
                 const start = performance.now();
                 while (performance.now() - start < CALC_CHUNK_MS) {
-                    let n = 20;
                     const f = (x) => x <= 1 ? x : f(x-1) + f(x-2);
-                    f(n);
+                    f(22); // Increased depth for more stress
                     count++;
                 }
                 total += count;
-                scores[id] = count * 10;
+                scores[id] = count * 250; 
                 iterations[id] = total;
             }, 10);
             intervals.push(int);
@@ -400,7 +527,7 @@
                     num++;
                 }
                 total += count;
-                scores[id] = count * 10;
+                scores[id] = count * 15;
                 iterations[id] = total;
             }, 10);
             intervals.push(int);
@@ -413,12 +540,12 @@
                 let count = 0;
                 const start = performance.now();
                 while (performance.now() - start < CALC_CHUNK_MS) {
-                    const size = 20;
+                    const size = 30;
                     for(let i=0; i<size*size; i++) { Math.random() * Math.random(); }
                     count++;
                 }
                 total += count;
-                scores[id] = count * 100;
+                scores[id] = count * 2000;
                 iterations[id] = total;
             }, 10);
             intervals.push(int);
@@ -431,12 +558,12 @@
                 let count = 0;
                 const start = performance.now();
                 while (performance.now() - start < CALC_CHUNK_MS) {
-                    const a = Array.from({length: 500}, () => Math.random());
+                    const a = Array.from({length: 1000}, () => Math.random());
                     a.sort();
                     count++;
                 }
                 total += count;
-                scores[id] = count * 10;
+                scores[id] = count * 1000;
                 iterations[id] = total;
             }, 10);
             intervals.push(int);
@@ -455,7 +582,7 @@
                     count++;
                 }
                 total += count;
-                scores[id] = count * 100;
+                scores[id] = count * 2000;
                 iterations[id] = total;
             }, 10);
             intervals.push(int);
@@ -474,7 +601,7 @@
                     count++;
                 }
                 total += count;
-                scores[id] = count * 10;
+                scores[id] = count * 500;
                 iterations[id] = total;
             }, 10);
             intervals.push(int);
@@ -486,13 +613,13 @@
                 if (!running) return;
                 let count = 0;
                 const start = performance.now();
-                const str = "test string ".repeat(100);
+                const str = "test string pattern match ".repeat(100);
                 while (performance.now() - start < CALC_CHUNK_MS) {
-                    str.match(/string/g);
+                    str.match(/pattern/g);
                     count++;
                 }
                 total += count;
-                scores[id] = count * 10;
+                scores[id] = count * 1000;
                 iterations[id] = total;
             }, 10);
             intervals.push(int);
@@ -505,11 +632,11 @@
                 let mb = 0;
                 const start = performance.now();
                 while (performance.now() - start < CALC_CHUNK_MS) {
-                    const a = new Float64Array(10000);
+                    const a = new Float64Array(20000);
                     mb += (a.byteLength / 1024 / 1024);
                 }
                 total += mb;
-                scores[id] = Math.floor(mb * 10);
+                scores[id] = Math.floor(mb * 5000);
                 iterations[id] = total;
             }, 10);
             intervals.push(int);
@@ -522,11 +649,11 @@
                 let count = 0;
                 const start = performance.now();
                 while (performance.now() - start < CALC_CHUNK_MS) {
-                    Math.sin(Math.random()) * Math.cos(Math.random());
+                    Math.sin(Math.random()) * Math.cos(Math.random()) * Math.tan(Math.random());
                     count++;
                 }
                 total += count;
-                scores[id] = count;
+                scores[id] = count * 2;
                 iterations[id] = total;
             }, 10);
             intervals.push(int);
@@ -538,13 +665,13 @@
                 if (!running) return;
                 let count = 0;
                 const start = performance.now();
-                const obj = { x: 1, y: "string", z: [1,2,3] };
+                const obj = { x: 1, y: "benchmark string test object", z: [1,2,3,4,5], w: { val: 10 } };
                 while (performance.now() - start < CALC_CHUNK_MS) {
                     JSON.parse(JSON.stringify(obj));
                     count++;
                 }
                 total += count;
-                scores[id] = count * 10;
+                scores[id] = count * 1500;
                 iterations[id] = total;
             }, 10);
             intervals.push(int);
