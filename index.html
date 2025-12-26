@@ -72,7 +72,7 @@
             cursor: not-allowed;
         }
 
-        /* Seamless Slot Machine Animation */
+        /* Slot Machine Animation */
         .slot-container {
             display: inline-flex;
             overflow: hidden;
@@ -150,20 +150,24 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #1a1a1a;
+            user-select: none;
         }
 
         .comparison-header:hover {
             background: #111;
+            color: #888;
         }
 
         .comparison-content {
-            padding: 20px;
-            display: none;
+            height: 0;
+            overflow: hidden;
             background: #080808;
+            transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .comparison-content.expanded {
-            display: block;
+            height: auto;
+            padding: 20px;
         }
 
         .comp-row {
@@ -192,7 +196,7 @@
             background: #333;
             width: 0%;
             border-radius: 3px;
-            transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .comp-bar-fill.user-bar {
@@ -275,7 +279,7 @@
 <body>
     <div class="header">
         <h1>Advanced System Benchmark</h1>
-        <p>Unrestricted Stress Test / Integrated Comparison Analytics</p>
+        <p>Unpredictable Logic Stress Test / Integrated Comparison Analytics</p>
     </div>
 
     <div class="controls">
@@ -295,7 +299,7 @@
             <span id="expandIcon">expand [+]</span>
         </div>
         <div class="comparison-content" id="compContent">
-            <!-- Bars will be populated here -->
+            <!-- Bars populated by JS -->
         </div>
     </div>
 
@@ -309,39 +313,46 @@
         let startTime;
         let running = false;
         let intervals = [];
-        let animationFrames = [];
         let visualUpdateTimer = null;
         
         let scores = {};
         let iterations = {};
 
-        // Reference benchmarks for the comparison table
         const referenceTiers = [
-            { name: "Vintage Desktop (Core 2 Duo)", score: 2500000 },
-            { name: "Modern Ultra-Thin (i5-1235U)", score: 8500000 },
-            { name: "Performance Workstation (M2 Pro)", score: 14000000 },
-            { name: "High-End Gaming (i9-14900K)", score: 21000000 },
-            { name: "Enterprise Server (Dual EPYC)", score: 35000000 }
+            { name: "Vintage Desktop (Core 2 Duo)", score: 1500000 },
+            { name: "Modern Ultra-Thin (i5-1235U)", score: 5500000 },
+            { name: "Performance Workstation (M2 Pro)", score: 11000000 },
+            { name: "High-End Gaming (i9-14900K)", score: 18000000 },
+            { name: "Enterprise Server (Dual EPYC)", score: 28000000 }
         ];
 
         const benchmarks = [
-            { id: 'fib', title: 'fibonacci recursion', test: fibTest, unit: 'ops/s' },
-            { id: 'prime', title: 'prime discovery', test: primeTest, unit: 'primes/s' },
-            { id: 'matrix', title: 'matrix product', test: matrixTest, unit: 'ops/s' },
-            { id: 'sort', title: 'array quicksort', test: sortTest, unit: 'sorts/s' },
-            { id: 'hash', title: 'sha-256 simulation', test: hashTest, unit: 'hashes/s' },
+            { id: 'fib', title: 'randomized fibonacci', test: fibTest, unit: 'ops/s' },
+            { id: 'prime', title: 'prime search range', test: primeTest, unit: 'primes/s' },
+            { id: 'matrix', title: 'dynamic matrix mul', test: matrixTest, unit: 'ops/s' },
+            { id: 'sort', title: 'random quicksort', test: sortTest, unit: 'sorts/s' },
+            { id: 'hash', title: 'salt-based hashing', test: hashTest, unit: 'hashes/s' },
             { id: 'dom', title: 'dom node stress', test: domTest, unit: 'elements/s' },
-            { id: 'regex', title: 'pattern matching', test: regexTest, unit: 'matches/s' },
-            { id: 'mem', title: 'heap allocation', test: memTest, unit: 'mb/s' },
-            { id: 'float', title: 'floating point', test: floatTest, unit: 'flops/s' },
-            { id: 'json', title: 'json serialization', test: jsonTest, unit: 'ops/s' }
+            { id: 'regex', title: 'dynamic regex match', test: regexTest, unit: 'matches/s' },
+            { id: 'mem', title: 'dynamic allocation', test: memTest, unit: 'mb/s' },
+            { id: 'float', title: 'trig math stress', test: floatTest, unit: 'flops/s' },
+            { id: 'json', title: 'complex json cycle', test: jsonTest, unit: 'ops/s' }
         ];
 
         function toggleComparison() {
             const content = document.getElementById('compContent');
             const icon = document.getElementById('expandIcon');
-            content.classList.toggle('expanded');
-            icon.textContent = content.classList.contains('expanded') ? 'collapse [-]' : 'expand [+]';
+            const isExpanded = content.classList.contains('expanded');
+            
+            if (isExpanded) {
+                content.style.height = '0';
+                content.classList.remove('expanded');
+                icon.textContent = 'expand [+]';
+            } else {
+                content.classList.add('expanded');
+                content.style.height = content.scrollHeight + 'px';
+                icon.textContent = 'collapse [-]';
+            }
         }
 
         function updateSlotValue(elementId, value) {
@@ -387,7 +398,9 @@
 
         function initComparison() {
             const container = document.getElementById('compContent');
-            // Add user bar at top
+            container.innerHTML = ''; // Clear previous content
+
+            // User performance bar
             const userRow = document.createElement('div');
             userRow.className = 'comp-row';
             userRow.innerHTML = `
@@ -399,6 +412,7 @@
             `;
             container.appendChild(userRow);
 
+            // Static reference bars
             referenceTiers.forEach(tier => {
                 const row = document.createElement('div');
                 row.className = 'comp-row';
@@ -407,7 +421,7 @@
                         <span>${tier.name}</span>
                         <span>${tier.score.toLocaleString()}</span>
                     </div>
-                    <div class="comp-bar-bg"><div class="comp-bar-fill" style="width: ${Math.min(100, (tier.score/35000000)*100)}%"></div></div>
+                    <div class="comp-bar-bg"><div class="comp-bar-fill" style="width: ${Math.min(100, (tier.score/28000000)*100)}%"></div></div>
                 `;
                 container.appendChild(row);
             });
@@ -444,7 +458,8 @@
             document.getElementById('stopBtn').disabled = false;
 
             benchmarks.forEach(b => {
-                document.getElementById(`card-${b.id}`).classList.add('running');
+                const card = document.getElementById(`card-${b.id}`);
+                if(card) card.classList.add('running');
                 b.test(b.id);
             });
 
@@ -457,12 +472,11 @@
                 const avg = total / benchmarks.length;
                 updateSlotValue('overallScore', avg);
 
-                // Update Comparison Graph
                 const userBar = document.getElementById('userCompBar');
                 const userVal = document.getElementById('userCompVal');
-                const maxVal = 35000000;
-                userBar.style.width = Math.min(100, (avg / maxVal) * 100) + '%';
-                userVal.textContent = Math.floor(avg).toLocaleString();
+                const maxVal = 28000000;
+                if (userBar) userBar.style.width = Math.min(100, (avg / maxVal) * 100) + '%';
+                if (userVal) userVal.textContent = Math.floor(avg).toLocaleString();
             }, VISUAL_UPDATE_INTERVAL);
 
             requestAnimationFrame(updateLoop);
@@ -474,7 +488,8 @@
             const prog = (elapsed / DURATION) * 100;
             document.getElementById('timer').textContent = `${(elapsed/1000).toFixed(1)}s / 60.0s`;
             benchmarks.forEach(b => {
-                document.getElementById(`progress-${b.id}`).style.width = Math.min(prog, 100) + '%';
+                const fill = document.getElementById(`progress-${b.id}`);
+                if (fill) fill.style.width = Math.min(prog, 100) + '%';
             });
             if (elapsed >= DURATION) stopBenchmark();
             else requestAnimationFrame(updateLoop);
@@ -484,200 +499,191 @@
             running = false;
             clearInterval(visualUpdateTimer);
             intervals.forEach(clearInterval);
-            animationFrames.forEach(cancelAnimationFrame);
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
             benchmarks.forEach(b => {
-                document.getElementById(`card-${b.id}`).classList.remove('running');
-                document.getElementById(`status-${b.id}`).textContent = 'done';
+                const card = document.getElementById(`card-${b.id}`);
+                const status = document.getElementById(`status-${b.id}`);
+                if(card) card.classList.remove('running');
+                if(status) status.textContent = 'done';
             });
         }
 
-        // --- STRESS TESTS (Restored High-Intensity) ---
+        // --- STRESS TESTS ---
 
         function fibTest(id) {
-            let total = 0;
             const int = setInterval(() => {
                 if (!running) return;
                 let count = 0;
                 const start = performance.now();
                 while (performance.now() - start < CALC_CHUNK_MS) {
+                    const input = 18 + Math.floor(Math.random() * 8); 
                     const f = (x) => x <= 1 ? x : f(x-1) + f(x-2);
-                    f(22); // Increased depth for more stress
+                    f(input);
                     count++;
                 }
-                total += count;
-                scores[id] = count * 250; 
-                iterations[id] = total;
+                iterations[id] += count;
+                scores[id] = count * 200; 
             }, 10);
             intervals.push(int);
         }
 
         function primeTest(id) {
-            let total = 0;
             const int = setInterval(() => {
                 if (!running) return;
                 let count = 0;
                 const start = performance.now();
-                let num = 2;
                 while (performance.now() - start < CALC_CHUNK_MS) {
-                    let isP = true;
-                    for(let i=2; i<=Math.sqrt(num); i++) { if(num%i===0){isP=false; break;} }
-                    if(isP) count++;
-                    num++;
+                    let num = 1000 + Math.floor(Math.random() * 5000);
+                    let found = 0;
+                    while(found < 10) {
+                        let isP = true;
+                        for(let i=2; i<=Math.sqrt(num); i++) { if(num%i===0){isP=false; break;} }
+                        if(isP) found++;
+                        num++;
+                    }
+                    count++;
                 }
-                total += count;
-                scores[id] = count * 15;
-                iterations[id] = total;
+                iterations[id] += count;
+                scores[id] = count * 3000;
             }, 10);
             intervals.push(int);
         }
 
         function matrixTest(id) {
-            let total = 0;
             const int = setInterval(() => {
                 if (!running) return;
                 let count = 0;
                 const start = performance.now();
                 while (performance.now() - start < CALC_CHUNK_MS) {
-                    const size = 30;
-                    for(let i=0; i<size*size; i++) { Math.random() * Math.random(); }
+                    const size = 20 + Math.floor(Math.random() * 20);
+                    const a = new Float64Array(size * size);
+                    for(let i=0; i<a.length; i++) a[i] = Math.random();
                     count++;
                 }
-                total += count;
-                scores[id] = count * 2000;
-                iterations[id] = total;
+                iterations[id] += count;
+                scores[id] = count * 2500;
             }, 10);
             intervals.push(int);
         }
 
         function sortTest(id) {
-            let total = 0;
             const int = setInterval(() => {
                 if (!running) return;
                 let count = 0;
                 const start = performance.now();
                 while (performance.now() - start < CALC_CHUNK_MS) {
-                    const a = Array.from({length: 1000}, () => Math.random());
+                    const len = 500 + Math.floor(Math.random() * 1000);
+                    const a = Array.from({length: len}, () => Math.random());
                     a.sort();
                     count++;
                 }
-                total += count;
-                scores[id] = count * 1000;
-                iterations[id] = total;
+                iterations[id] += count;
+                scores[id] = count * 1200;
             }, 10);
             intervals.push(int);
         }
 
         function hashTest(id) {
-            let total = 0;
             const int = setInterval(() => {
                 if (!running) return;
                 let count = 0;
                 const start = performance.now();
                 while (performance.now() - start < CALC_CHUNK_MS) {
-                    let s = Math.random().toString();
+                    let s = Math.random().toString(36).substring(7) + Date.now();
                     let h = 0;
                     for(let i=0; i<s.length; i++) h = (h << 5) - h + s.charCodeAt(i);
                     count++;
                 }
-                total += count;
-                scores[id] = count * 2000;
-                iterations[id] = total;
+                iterations[id] += count;
+                scores[id] = count * 2500;
             }, 10);
             intervals.push(int);
         }
 
         function domTest(id) {
-            let total = 0;
             const int = setInterval(() => {
                 if (!running) return;
                 let count = 0;
                 const start = performance.now();
-                const frag = document.createDocumentFragment();
                 while (performance.now() - start < CALC_CHUNK_MS) {
                     const d = document.createElement('div');
-                    frag.appendChild(d);
+                    d.textContent = Math.random();
                     count++;
                 }
-                total += count;
-                scores[id] = count * 500;
-                iterations[id] = total;
+                iterations[id] += count;
+                scores[id] = count * 400;
             }, 10);
             intervals.push(int);
         }
 
         function regexTest(id) {
-            let total = 0;
             const int = setInterval(() => {
                 if (!running) return;
                 let count = 0;
                 const start = performance.now();
-                const str = "test string pattern match ".repeat(100);
                 while (performance.now() - start < CALC_CHUNK_MS) {
-                    str.match(/pattern/g);
+                    const salt = Math.random().toString();
+                    const str = "pattern " + salt + " match ".repeat(10);
+                    const regex = new RegExp(salt, 'g');
+                    str.match(regex);
                     count++;
                 }
-                total += count;
-                scores[id] = count * 1000;
-                iterations[id] = total;
+                iterations[id] += count;
+                scores[id] = count * 2000;
             }, 10);
             intervals.push(int);
         }
 
         function memTest(id) {
-            let total = 0;
             const int = setInterval(() => {
                 if (!running) return;
                 let mb = 0;
                 const start = performance.now();
                 while (performance.now() - start < CALC_CHUNK_MS) {
-                    const a = new Float64Array(20000);
+                    const size = 5000 + Math.floor(Math.random() * 20000);
+                    const a = new Float64Array(size);
                     mb += (a.byteLength / 1024 / 1024);
                 }
-                total += mb;
-                scores[id] = Math.floor(mb * 5000);
-                iterations[id] = total;
+                iterations[id] += mb;
+                scores[id] = Math.floor(mb * 6000);
             }, 10);
             intervals.push(int);
         }
 
         function floatTest(id) {
-            let total = 0;
             const int = setInterval(() => {
                 if (!running) return;
                 let count = 0;
                 const start = performance.now();
                 while (performance.now() - start < CALC_CHUNK_MS) {
-                    Math.sin(Math.random()) * Math.cos(Math.random()) * Math.tan(Math.random());
+                    const r = Math.random();
+                    Math.sin(r) * Math.cos(r) * Math.tan(r) * Math.asin(r);
                     count++;
                 }
-                total += count;
-                scores[id] = count * 2;
-                iterations[id] = total;
+                iterations[id] += count;
+                scores[id] = count * 1.5;
             }, 10);
             intervals.push(int);
         }
 
         function jsonTest(id) {
-            let total = 0;
             const int = setInterval(() => {
                 if (!running) return;
                 let count = 0;
                 const start = performance.now();
-                const obj = { x: 1, y: "benchmark string test object", z: [1,2,3,4,5], w: { val: 10 } };
                 while (performance.now() - start < CALC_CHUNK_MS) {
+                    const obj = { r: Math.random(), s: "str"+Math.random(), a: [Math.random()] };
                     JSON.parse(JSON.stringify(obj));
                     count++;
                 }
-                total += count;
-                scores[id] = count * 1500;
-                iterations[id] = total;
+                iterations[id] += count;
+                scores[id] = count * 1800;
             }, 10);
             intervals.push(int);
         }
 
-        init();
+        window.addEventListener('load', init);
     </script>
 </body>
 </html>
