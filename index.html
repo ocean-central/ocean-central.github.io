@@ -319,11 +319,11 @@
         let iterations = {};
 
         const referenceTiers = [
-            { name: "Vintage Desktop (Core 2 Duo)", score: 1500000 },
-            { name: "Modern Ultra-Thin (i5-1235U)", score: 5500000 },
-            { name: "Performance Workstation (M2 Pro)", score: 11000000 },
-            { name: "High-End Gaming (i9-14900K)", score: 18000000 },
-            { name: "Enterprise Server (Dual EPYC)", score: 28000000 }
+            { name: "Legacy Desktop (i7-4770K)", score: 12000000 },
+            { name: "Standard Laptop (Ryzen 5 5500U)", score: 35000000 },
+            { name: "Modern iPad / Mobile (A16 Bionic)", score: 80000000 },
+            { name: "High-End Workstation (M3 Max)", score: 115000000 },
+            { name: "Enterprise Server Cluster", score: 150000000 }
         ];
 
         const benchmarks = [
@@ -398,9 +398,8 @@
 
         function initComparison() {
             const container = document.getElementById('compContent');
-            container.innerHTML = ''; // Clear previous content
+            container.innerHTML = ''; 
 
-            // User performance bar
             const userRow = document.createElement('div');
             userRow.className = 'comp-row';
             userRow.innerHTML = `
@@ -412,7 +411,6 @@
             `;
             container.appendChild(userRow);
 
-            // Static reference bars
             referenceTiers.forEach(tier => {
                 const row = document.createElement('div');
                 row.className = 'comp-row';
@@ -421,7 +419,7 @@
                         <span>${tier.name}</span>
                         <span>${tier.score.toLocaleString()}</span>
                     </div>
-                    <div class="comp-bar-bg"><div class="comp-bar-fill" style="width: ${Math.min(100, (tier.score/28000000)*100)}%"></div></div>
+                    <div class="comp-bar-bg"><div class="comp-bar-fill" style="width: ${Math.min(100, (tier.score/150000000)*100)}%"></div></div>
                 `;
                 container.appendChild(row);
             });
@@ -474,7 +472,7 @@
 
                 const userBar = document.getElementById('userCompBar');
                 const userVal = document.getElementById('userCompVal');
-                const maxVal = 28000000;
+                const maxVal = 150000000;
                 if (userBar) userBar.style.width = Math.min(100, (avg / maxVal) * 100) + '%';
                 if (userVal) userVal.textContent = Math.floor(avg).toLocaleString();
             }, VISUAL_UPDATE_INTERVAL);
@@ -523,7 +521,7 @@
                     count++;
                 }
                 iterations[id] += count;
-                scores[id] = count * 200; 
+                scores[id] = count * 600; 
             }, 10);
             intervals.push(int);
         }
@@ -545,7 +543,7 @@
                     count++;
                 }
                 iterations[id] += count;
-                scores[id] = count * 3000;
+                scores[id] = count * 9000;
             }, 10);
             intervals.push(int);
         }
@@ -562,7 +560,7 @@
                     count++;
                 }
                 iterations[id] += count;
-                scores[id] = count * 2500;
+                scores[id] = count * 7500;
             }, 10);
             intervals.push(int);
         }
@@ -579,7 +577,7 @@
                     count++;
                 }
                 iterations[id] += count;
-                scores[id] = count * 1200;
+                scores[id] = count * 3600;
             }, 10);
             intervals.push(int);
         }
@@ -596,7 +594,7 @@
                     count++;
                 }
                 iterations[id] += count;
-                scores[id] = count * 2500;
+                scores[id] = count * 7500;
             }, 10);
             intervals.push(int);
         }
@@ -612,7 +610,7 @@
                     count++;
                 }
                 iterations[id] += count;
-                scores[id] = count * 400;
+                scores[id] = count * 1200;
             }, 10);
             intervals.push(int);
         }
@@ -630,7 +628,7 @@
                     count++;
                 }
                 iterations[id] += count;
-                scores[id] = count * 2000;
+                scores[id] = count * 6000;
             }, 10);
             intervals.push(int);
         }
@@ -646,7 +644,7 @@
                     mb += (a.byteLength / 1024 / 1024);
                 }
                 iterations[id] += mb;
-                scores[id] = Math.floor(mb * 6000);
+                scores[id] = Math.floor(mb * 18000);
             }, 10);
             intervals.push(int);
         }
@@ -662,7 +660,7 @@
                     count++;
                 }
                 iterations[id] += count;
-                scores[id] = count * 1.5;
+                scores[id] = count * 4.5;
             }, 10);
             intervals.push(int);
         }
@@ -678,7 +676,7 @@
                     count++;
                 }
                 iterations[id] += count;
-                scores[id] = count * 1800;
+                scores[id] = count * 5400;
             }, 10);
             intervals.push(int);
         }
