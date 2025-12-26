@@ -23,7 +23,7 @@
 
         .header {
             text-align: center;
-            margin-bottom: 60px;
+            margin-bottom: 40px;
         }
 
         .header h1 {
@@ -43,8 +43,26 @@
         .controls {
             display: flex;
             justify-content: center;
+            align-items: center;
             gap: 15px;
-            margin-bottom: 50px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            background: #111;
+            border: 1px solid #222;
+            padding: 12px 15px;
+            border-radius: 6px;
+            color: #888;
+            font-family: 'Google Sans', sans-serif;
+            font-size: 0.9em;
+            outline: none;
+            width: 200px;
+        }
+
+        input[type="text"]:focus {
+            border-color: #444;
         }
 
         button {
@@ -132,8 +150,8 @@
             font-weight: 500;
         }
 
-        /* Comparison Table Styles */
-        .comparison-wrapper {
+        /* Leaderboard Styles */
+        .leaderboard-wrapper {
             max-width: 800px;
             margin: 0 auto 50px auto;
             border: 1px solid #1a1a1a;
@@ -142,7 +160,7 @@
             overflow: hidden;
         }
 
-        .comparison-header {
+        .leaderboard-header {
             padding: 15px 20px;
             background: #0c0c0c;
             cursor: pointer;
@@ -151,57 +169,40 @@
             align-items: center;
             border-bottom: 1px solid #1a1a1a;
             user-select: none;
+            color: #555;
         }
 
-        .comparison-header:hover {
-            background: #111;
-            color: #888;
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85em;
         }
 
-        .comparison-content {
+        .leaderboard-table th {
+            text-align: left;
+            padding: 12px 20px;
+            color: #333;
+            border-bottom: 1px solid #111;
+            font-weight: 500;
+        }
+
+        .leaderboard-table td {
+            padding: 12px 20px;
+            color: #666;
+            border-bottom: 1px solid #0f0f0f;
+        }
+
+        .leaderboard-content {
             height: 0;
             overflow: hidden;
             background: #080808;
             transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .comparison-content.expanded {
+        .leaderboard-content.expanded {
             height: auto;
-            padding: 20px;
-        }
-
-        .comp-row {
-            margin-bottom: 15px;
-        }
-
-        .comp-info {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.8em;
-            margin-bottom: 6px;
-            color: #444;
-        }
-
-        .comp-bar-bg {
-            height: 6px;
-            background: #111;
-            border-radius: 3px;
-            width: 100%;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .comp-bar-fill {
-            height: 100%;
-            background: #333;
-            width: 0%;
-            border-radius: 3px;
-            transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .comp-bar-fill.user-bar {
-            background: #666;
-            box-shadow: 0 0 10px rgba(100, 100, 100, 0.2);
+            max-height: 400px;
+            overflow-y: auto;
         }
 
         .benchmark-grid {
@@ -274,16 +275,27 @@
             color: #444;
             margin: 4px 0;
         }
+        
+        .status-msg {
+            text-align: center;
+            font-size: 0.75em;
+            margin-top: -20px;
+            margin-bottom: 20px;
+            color: #333;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>Advanced System Benchmark</h1>
-        <p>Unpredictable Logic Stress Test / Integrated Comparison Analytics</p>
+        <p>Unpredictable Logic Stress Test / Global Leaderboard</p>
     </div>
 
+    <div class="status-msg" id="authStatus">Initializing secure session...</div>
+
     <div class="controls">
-        <button id="startBtn" onclick="startBenchmark()">start</button>
+        <input type="text" id="userName" placeholder="enter your name" maxlength="15">
+        <button id="startBtn" onclick="startBenchmark()" disabled>loading...</button>
         <button id="stopBtn" onclick="stopBenchmark()" disabled>stop</button>
     </div>
 
@@ -293,17 +305,138 @@
         <div class="timer" id="timer">0.0s / 60.0s</div>
     </div>
 
-    <div class="comparison-wrapper">
-        <div class="comparison-header" onclick="toggleComparison()">
-            <span>Hardware Comparison (Estimated)</span>
+    <div class="leaderboard-wrapper">
+        <div class="leaderboard-header" onclick="toggleLeaderboard()">
+            <span>Top 10 Global Rankings</span>
             <span id="expandIcon">expand [+]</span>
         </div>
-        <div class="comparison-content" id="compContent">
-            <!-- Bars populated by JS -->
+        <div class="leaderboard-content expanded" id="leaderboardContent">
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>name</th>
+                        <th>score</th>
+                        <th>date</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body">
+                    <tr>
+                        <td colspan="3" style="text-align: center; padding: 30px;">connecting to live database...</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
     <div class="benchmark-grid" id="benchmarkGrid"></div>
+
+    <!-- Firebase Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : {
+                apiKey: "AIzaSyCjSl69biNUauSyc5PY6SmUYfcpIwv43OI",
+                authDomain: "benchbackend.firebaseapp.com",
+                projectId: "benchbackend",
+                storageBucket: "benchbackend.firebasestorage.app",
+                messagingSenderId: "964026070166",
+                appId: "1:964026070166:web:71c4a6eb59edfab03f7eb7"
+            };
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'bench-suite-v1';
+        const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let user = null;
+
+        async function initAuth() {
+            try {
+                if (initialToken) {
+                    await signInWithCustomToken(auth, initialToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth failed:", error);
+                document.getElementById('authStatus').textContent = "Connection issue. Results will be local-only.";
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('startBtn').textContent = "start";
+            }
+        }
+
+        onAuthStateChanged(auth, (u) => {
+            user = u;
+            if (u) {
+                document.getElementById('authStatus').textContent = `Connected securely`;
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('startBtn').textContent = "start";
+                setupLeaderboardListener();
+            }
+        });
+
+        function setupLeaderboardListener() {
+            if (!user) return;
+            // RULE 1: Strict Paths
+            const leaderboardCol = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+            
+            // RULE 2: No Complex Queries (Fetch all, sort/limit in JS)
+            onSnapshot(leaderboardCol, (snapshot) => {
+                const tableBody = document.getElementById("leaderboard-body");
+                const entries = [];
+                
+                snapshot.forEach((doc) => {
+                    entries.push(doc.data());
+                });
+
+                // Sort descending by score and take top 10
+                entries.sort((a, b) => (b.score || 0) - (a.score || 0));
+                const top10 = entries.slice(0, 10);
+
+                if (top10.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 20px;">No scores yet. Run a test!</td></tr>`;
+                    return;
+                }
+
+                tableBody.innerHTML = top10.map(data => {
+                    const dateStr = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleDateString() : 'recent';
+                    return `<tr>
+                        <td>${data.name || 'Anonymous'}</td>
+                        <td style="color: #888; font-weight: 500;">${Math.floor(data.score).toLocaleString()}</td>
+                        <td style="font-size: 0.8em; color: #333;">${dateStr}</td>
+                    </tr>`;
+                }).join('');
+            }, (error) => {
+                console.error("Leaderboard sync failed:", error);
+            });
+        }
+
+        window.uploadScore = async function(userName, userScore) {
+            if (!user) return;
+            try {
+                const leaderboardCol = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+                await addDoc(leaderboardCol, {
+                    uid: user.uid,
+                    name: userName || 'anonymous',
+                    score: userScore,
+                    timestamp: serverTimestamp()
+                });
+                document.getElementById('authStatus').textContent = "Score uploaded successfully!";
+                setTimeout(() => { document.getElementById('authStatus').textContent = "Connected securely"; }, 3000);
+            } catch (error) {
+                console.error("Error saving score:", error);
+                document.getElementById('authStatus').textContent = "Error saving score.";
+            }
+        };
+
+        initAuth();
+    </script>
 
     <script>
         const DURATION = 60000;
@@ -317,14 +450,7 @@
         
         let scores = {};
         let iterations = {};
-
-        const referenceTiers = [
-            { name: "Legacy Desktop (i7-4770K)", score: 12000000 },
-            { name: "Standard Laptop (Ryzen 5 5500U)", score: 35000000 },
-            { name: "Modern iPad / Mobile (A16 Bionic)", score: 80000000 },
-            { name: "High-End Workstation (M3 Max)", score: 115000000 },
-            { name: "Enterprise Server Cluster", score: 150000000 }
-        ];
+        let finalCalculatedScore = 0;
 
         const benchmarks = [
             { id: 'fib', title: 'randomized fibonacci', test: fibTest, unit: 'ops/s' },
@@ -339,8 +465,8 @@
             { id: 'json', title: 'complex json cycle', test: jsonTest, unit: 'ops/s' }
         ];
 
-        function toggleComparison() {
-            const content = document.getElementById('compContent');
+        function toggleLeaderboard() {
+            const content = document.getElementById('leaderboardContent');
             const icon = document.getElementById('expandIcon');
             const isExpanded = content.classList.contains('expanded');
             
@@ -350,7 +476,7 @@
                 icon.textContent = 'expand [+]';
             } else {
                 content.classList.add('expanded');
-                content.style.height = content.scrollHeight + 'px';
+                content.style.height = 'auto';
                 icon.textContent = 'collapse [-]';
             }
         }
@@ -396,39 +522,9 @@
             });
         }
 
-        function initComparison() {
-            const container = document.getElementById('compContent');
-            container.innerHTML = ''; 
-
-            const userRow = document.createElement('div');
-            userRow.className = 'comp-row';
-            userRow.innerHTML = `
-                <div class="comp-info">
-                    <span>Current System (You)</span>
-                    <span id="userCompVal">0</span>
-                </div>
-                <div class="comp-bar-bg"><div class="comp-bar-fill user-bar" id="userCompBar"></div></div>
-            `;
-            container.appendChild(userRow);
-
-            referenceTiers.forEach(tier => {
-                const row = document.createElement('div');
-                row.className = 'comp-row';
-                row.innerHTML = `
-                    <div class="comp-info">
-                        <span>${tier.name}</span>
-                        <span>${tier.score.toLocaleString()}</span>
-                    </div>
-                    <div class="comp-bar-bg"><div class="comp-bar-fill" style="width: ${Math.min(100, (tier.score/150000000)*100)}%"></div></div>
-                `;
-                container.appendChild(row);
-            });
-        }
-
         function init() {
             const grid = document.getElementById('benchmarkGrid');
             updateSlotValue('overallScore', 0);
-            initComparison();
 
             benchmarks.forEach(b => {
                 const card = document.createElement('div');
@@ -454,6 +550,7 @@
             startTime = Date.now();
             document.getElementById('startBtn').disabled = true;
             document.getElementById('stopBtn').disabled = false;
+            document.getElementById('userName').disabled = true;
 
             benchmarks.forEach(b => {
                 const card = document.getElementById(`card-${b.id}`);
@@ -467,14 +564,8 @@
                     document.getElementById(`iter-${b.id}`).textContent = Math.floor(iterations[b.id]).toLocaleString();
                 });
                 const total = Object.values(scores).reduce((a, b) => a + b, 0);
-                const avg = total / benchmarks.length;
-                updateSlotValue('overallScore', avg);
-
-                const userBar = document.getElementById('userCompBar');
-                const userVal = document.getElementById('userCompVal');
-                const maxVal = 150000000;
-                if (userBar) userBar.style.width = Math.min(100, (avg / maxVal) * 100) + '%';
-                if (userVal) userVal.textContent = Math.floor(avg).toLocaleString();
+                finalCalculatedScore = total / benchmarks.length;
+                updateSlotValue('overallScore', finalCalculatedScore);
             }, VISUAL_UPDATE_INTERVAL);
 
             requestAnimationFrame(updateLoop);
@@ -494,11 +585,20 @@
         }
 
         function stopBenchmark() {
+            const wasRunning = running;
             running = false;
             clearInterval(visualUpdateTimer);
             intervals.forEach(clearInterval);
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
+            document.getElementById('userName').disabled = false;
+            
+            // Upload score if the benchmark completed naturally
+            if (wasRunning && typeof window.uploadScore === 'function') {
+                const name = document.getElementById('userName').value || 'Anonymous';
+                window.uploadScore(name, finalCalculatedScore);
+            }
+
             benchmarks.forEach(b => {
                 const card = document.getElementById(`card-${b.id}`);
                 const status = document.getElementById(`status-${b.id}`);
@@ -508,7 +608,6 @@
         }
 
         // --- STRESS TESTS ---
-
         function fibTest(id) {
             const int = setInterval(() => {
                 if (!running) return;
