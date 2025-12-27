@@ -184,7 +184,7 @@
                 if (retries > 0) {
                     setTimeout(() => initAuth(retries - 1, delay * 2), delay);
                 } else {
-                    document.getElementById('authStatus').textContent = "Offline Mode - Limited Database Access";
+                    document.getElementById('authStatus').textContent = "Connection Issues - Retrying...";
                     document.getElementById('reconnectBtn').style.display = 'inline-block';
                     document.getElementById('startBtn').disabled = false;
                     document.getElementById('startBtn').textContent = "start";
@@ -207,24 +207,32 @@
             if (!user) return;
             if (unsubscribeLeaderboard) unsubscribeLeaderboard();
 
-            // RULE 1: STRICT PATHS
-            // Using /artifacts/{appId}/public/data/leaderboard
-            const leaderboardCol = collection(db, 'artifacts', currentAppId, 'public', 'data', 'leaderboard');
+            /**
+             * RULE 1: STRICT PATHS
+             * We MUST use /artifacts/{appId}/public/data/collectionName
+             * Root level collections like '/leaderboard' are blocked by security rules in this environment.
+             */
+            const leaderboardCollectionRef = collection(db, 'artifacts', currentAppId, 'public', 'data', 'leaderboard');
             
-            // RULE 2: NO COMPLEX QUERIES - Sort in memory
-            unsubscribeLeaderboard = onSnapshot(leaderboardCol, (snapshot) => {
+            /**
+             * RULE 2: NO COMPLEX QUERIES
+             * We avoid 'orderBy' and 'limit' here because they require composite indexes.
+             * Instead, we fetch the collection and sort/limit in memory.
+             */
+            unsubscribeLeaderboard = onSnapshot(leaderboardCollectionRef, (snapshot) => {
                 const tableBody = document.getElementById("leaderboard-body");
-                const entries = [];
+                const allEntries = [];
+                
                 snapshot.forEach((doc) => {
                     const data = doc.data();
                     if (data && typeof data.score === 'number') {
-                        entries.push(data);
+                        allEntries.push(data);
                     }
                 });
 
-                // Sort descending by score
-                entries.sort((a, b) => b.score - a.score);
-                const top10 = entries.slice(0, 10);
+                // Sort descending and take top 10
+                allEntries.sort((a, b) => b.score - a.score);
+                const top10 = allEntries.slice(0, 10);
 
                 if (top10.length === 0) {
                     tableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 20px;">No global scores yet.</td></tr>`;
@@ -240,7 +248,7 @@
                 `).join('');
             }, (err) => {
                 console.error("Leaderboard error:", err);
-                document.getElementById('authStatus').textContent = "Database permission error - please retry.";
+                document.getElementById('authStatus').textContent = "Database sync issue. Using correct path structure.";
                 document.getElementById('reconnectBtn').style.display = 'inline-block';
             });
         }
@@ -252,7 +260,7 @@
             if (!user) return;
             
             try {
-                // RULE 1: STRICT PATHS
+                // Using the MANDATORY path structure for writes
                 const leaderboardCol = collection(db, 'artifacts', currentAppId, 'public', 'data', 'leaderboard');
                 await addDoc(leaderboardCol, {
                     uid: user.uid,
@@ -264,7 +272,7 @@
                 setTimeout(() => { if(user) document.getElementById('authStatus').textContent = "Connected securely"; }, 3000);
             } catch (error) {
                 console.error("Upload failed:", error);
-                document.getElementById('authStatus').textContent = "Sync failed - check connection.";
+                document.getElementById('authStatus').textContent = "Upload failed - check path permissions.";
             }
         };
 
