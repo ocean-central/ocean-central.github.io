@@ -76,12 +76,10 @@
         .leaderboard-header {
             padding: 15px 20px;
             background: #0c0c0c;
-            cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #1a1a1a;
-            user-select: none;
             color: #555;
         }
         .leaderboard-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
@@ -97,7 +95,6 @@
         .progress-fill { height: 100%; background: #444; width: 0%; transition: width 0.1s linear; }
         .metric { display: flex; justify-content: space-between; font-size: 0.85em; color: #444; margin: 4px 0; }
         .status-msg { text-align: center; font-size: 0.75em; margin-top: -20px; margin-bottom: 20px; color: #333; }
-        /* Slot Animation */
         .slot-container { display: inline-flex; overflow: hidden; height: 1.2em; vertical-align: bottom; position: relative; width: 0.65em; justify-content: center; }
         .slot-ribbon { display: flex; flex-direction: column; transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1); position: absolute; top: 0; }
         .slot-digit { height: 1.2em; display: flex; align-items: center; justify-content: center; }
@@ -139,7 +136,7 @@
                     </tr>
                 </thead>
                 <tbody id="leaderboard-body">
-                    <tr><td colspan="3" style="text-align: center; padding: 30px;">connecting...</td></tr>
+                    <tr><td colspan="3" style="text-align: center; padding: 30px;">connecting to global database...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -150,10 +147,12 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Constants for environment-aware identification
+        // We MUST use __app_id for permissions to work in this environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'benchmark-suite-global';
         const firebaseConfig = JSON.parse(__firebase_config);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'benchmark-suite';
         const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         const app = initializeApp(firebaseConfig);
@@ -164,6 +163,7 @@
         let unsubscribeLeaderboard = null;
 
         async function initAuth(retries = 5, delay = 1000) {
+            document.getElementById('authStatus').textContent = "Connecting to database...";
             try {
                 if (initialToken) {
                     await signInWithCustomToken(auth, initialToken);
@@ -171,10 +171,11 @@
                     await signInAnonymously(auth);
                 }
             } catch (error) {
+                console.error("Auth error:", error);
                 if (retries > 0) {
                     setTimeout(() => initAuth(retries - 1, delay * 2), delay);
                 } else {
-                    document.getElementById('authStatus').textContent = "Offline Mode (Local Only)";
+                    document.getElementById('authStatus').textContent = "Offline Mode (Leaderboard disabled)";
                     document.getElementById('reconnectBtn').style.display = 'inline-block';
                     document.getElementById('startBtn').disabled = false;
                     document.getElementById('startBtn').textContent = "start";
@@ -197,19 +198,21 @@
             if (!user) return;
             if (unsubscribeLeaderboard) unsubscribeLeaderboard();
 
-            // Mandatory Path Rule Implementation
+            // Using the mandatory environment path for permissions
             const leaderboardCol = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
             
+            // Simple query only (No orderBy or complex filters per Rule 2)
             unsubscribeLeaderboard = onSnapshot(leaderboardCol, (snapshot) => {
                 const tableBody = document.getElementById("leaderboard-body");
                 const entries = [];
                 snapshot.forEach((doc) => entries.push(doc.data()));
 
+                // Sort in memory (Rule 2)
                 entries.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0));
                 const top10 = entries.slice(0, 10);
 
                 if (top10.length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 20px;">Be the first to score!</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 20px;">No global scores yet.</td></tr>`;
                     return;
                 }
 
@@ -220,7 +223,16 @@
                         <td style="font-size: 0.8em; color: #333;">${data.timestamp ? new Date(data.timestamp.toDate()).toLocaleDateString() : 'recent'}</td>
                     </tr>
                 `).join('');
-            }, (err) => console.error("Sync error:", err));
+            }, (err) => {
+                console.error("Leaderboard error:", err);
+                // If it's a permission error, we show it clearly
+                if (err.code === 'permission-denied') {
+                    document.getElementById('authStatus').textContent = "Database permission error.";
+                } else {
+                    document.getElementById('authStatus').textContent = "Connection issue. Try reconnect.";
+                }
+                document.getElementById('reconnectBtn').style.display = 'inline-block';
+            });
         }
 
         window.handleManualReconnect = () => initAuth();
@@ -228,7 +240,6 @@
         window.uploadScore = async function(userName, userScore) {
             if (!user) return;
             try {
-                // Rule: Strictly typed write for Security Rules
                 const leaderboardCol = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
                 await addDoc(leaderboardCol, {
                     uid: user.uid,
@@ -248,7 +259,7 @@
     </script>
 
     <script>
-        // Core Benchmark Logic
+        // --- Benchmark Core Logic ---
         const DURATION = 60000;
         const CALC_CHUNK_MS = 100;
         let startTime, running = false, intervals = [], visualUpdateTimer = null;
@@ -376,7 +387,6 @@
             });
         }
 
-        // Stress Tests Implementation
         function createTicker(id, scoreMult, logic) {
             const int = setInterval(() => {
                 if (!running) return;
@@ -388,10 +398,7 @@
         }
 
         function fibTest(id) { createTicker(id, 600, () => { const f = (x) => x <= 1 ? x : f(x-1) + f(x-2); f(20); }); }
-        function primeTest(id) { createTicker(id, 9000, () => { 
-            let num = Math.floor(Math.random() * 5000);
-            for(let i=2; i<=Math.sqrt(num); i++) if(num%i===0) break;
-        }); }
+        function primeTest(id) { createTicker(id, 9000, () => { let num = Math.floor(Math.random() * 5000); for(let i=2; i<=Math.sqrt(num); i++) if(num%i===0) break; }); }
         function matrixTest(id) { createTicker(id, 7500, () => { new Float64Array(400).map(() => Math.random()); }); }
         function sortTest(id) { createTicker(id, 3600, () => { Array.from({length: 100}, () => Math.random()).sort(); }); }
         function hashTest(id) { createTicker(id, 7500, () => { let h = 0, s = Math.random().toString(); for(let i=0; i<s.length; i++) h = (h<<5)-h+s.charCodeAt(i); }); }
