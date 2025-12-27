@@ -149,11 +149,20 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Constants for environment-aware identification
-        // We MUST use __app_id for permissions to work in this environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'benchmark-suite-global';
-        const firebaseConfig = JSON.parse(__firebase_config);
+        // --- ENVIRONMENT DETECTION & CONFIGURATION ---
+        const prodConfig = {
+            apiKey: "AIzaSyCjSl69biNUauSyc5PY6SmUYfcpIwv43OI",
+            authDomain: "benchbackend.firebaseapp.com",
+            projectId: "benchbackend",
+            storageBucket: "benchbackend.firebasestorage.app",
+            messagingSenderId: "964026070166",
+            appId: "1:964026070166:web:71c4a6eb59edfab03f7eb7"
+        };
+
+        const isCanvas = typeof __firebase_config !== 'undefined';
+        const firebaseConfig = isCanvas ? JSON.parse(__firebase_config) : prodConfig;
         const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'benchmark-suite-default';
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -165,7 +174,7 @@
         async function initAuth(retries = 5, delay = 1000) {
             document.getElementById('authStatus').textContent = "Connecting to database...";
             try {
-                if (initialToken) {
+                if (initialToken && isCanvas) {
                     await signInWithCustomToken(auth, initialToken);
                 } else {
                     await signInAnonymously(auth);
@@ -175,7 +184,7 @@
                 if (retries > 0) {
                     setTimeout(() => initAuth(retries - 1, delay * 2), delay);
                 } else {
-                    document.getElementById('authStatus').textContent = "Offline Mode (Leaderboard disabled)";
+                    document.getElementById('authStatus').textContent = "Offline Mode (Check Firebase Authorized Domains)";
                     document.getElementById('reconnectBtn').style.display = 'inline-block';
                     document.getElementById('startBtn').disabled = false;
                     document.getElementById('startBtn').textContent = "start";
@@ -186,7 +195,7 @@
         onAuthStateChanged(auth, (u) => {
             user = u;
             if (u) {
-                document.getElementById('authStatus').textContent = "Connected to global board";
+                document.getElementById('authStatus').textContent = "Connected securely";
                 document.getElementById('startBtn').disabled = false;
                 document.getElementById('startBtn').textContent = "start";
                 document.getElementById('reconnectBtn').style.display = 'none';
@@ -198,16 +207,15 @@
             if (!user) return;
             if (unsubscribeLeaderboard) unsubscribeLeaderboard();
 
-            // Using the mandatory environment path for permissions
-            const leaderboardCol = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+            // MANDATORY RULE: Use /artifacts/{appId}/public/data/{collectionName}
+            const leaderboardCol = collection(db, 'artifacts', currentAppId, 'public', 'data', 'leaderboard');
             
-            // Simple query only (No orderBy or complex filters per Rule 2)
             unsubscribeLeaderboard = onSnapshot(leaderboardCol, (snapshot) => {
                 const tableBody = document.getElementById("leaderboard-body");
                 const entries = [];
                 snapshot.forEach((doc) => entries.push(doc.data()));
 
-                // Sort in memory (Rule 2)
+                // RULE: Sort in memory to avoid index requirements
                 entries.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0));
                 const top10 = entries.slice(0, 10);
 
@@ -225,11 +233,10 @@
                 `).join('');
             }, (err) => {
                 console.error("Leaderboard error:", err);
-                // If it's a permission error, we show it clearly
                 if (err.code === 'permission-denied') {
-                    document.getElementById('authStatus').textContent = "Database permission error.";
+                    document.getElementById('authStatus').textContent = "Permission denied. Collection path updated.";
                 } else {
-                    document.getElementById('authStatus').textContent = "Connection issue. Try reconnect.";
+                    document.getElementById('authStatus').textContent = "Connection error.";
                 }
                 document.getElementById('reconnectBtn').style.display = 'inline-block';
             });
@@ -240,18 +247,19 @@
         window.uploadScore = async function(userName, userScore) {
             if (!user) return;
             try {
-                const leaderboardCol = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+                // MANDATORY RULE: Use /artifacts/{appId}/public/data/{collectionName}
+                const leaderboardCol = collection(db, 'artifacts', currentAppId, 'public', 'data', 'leaderboard');
                 await addDoc(leaderboardCol, {
                     uid: user.uid,
                     name: userName || 'anonymous',
                     score: Number(userScore), 
                     timestamp: serverTimestamp()
                 });
-                document.getElementById('authStatus').textContent = "Score saved to global board!";
-                setTimeout(() => { if(user) document.getElementById('authStatus').textContent = "Connected to global board"; }, 3000);
+                document.getElementById('authStatus').textContent = "Score synchronized!";
+                setTimeout(() => { if(user) document.getElementById('authStatus').textContent = "Connected securely"; }, 3000);
             } catch (error) {
                 console.error("Upload failed:", error);
-                document.getElementById('authStatus').textContent = "Upload failed.";
+                document.getElementById('authStatus').textContent = "Sync failed.";
             }
         };
 
@@ -313,6 +321,7 @@
 
         function init() {
             const grid = document.getElementById('benchmarkGrid');
+            grid.innerHTML = '';
             updateSlotValue('overallScore', 0);
             benchmarks.forEach(b => {
                 const card = document.createElement('div');
@@ -372,6 +381,7 @@
             running = false;
             clearInterval(visualUpdateTimer);
             intervals.forEach(clearInterval);
+            intervals = [];
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
             document.getElementById('userName').disabled = false;
