@@ -2,496 +2,595 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced System Benchmark Suite</title>
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>the lost tower</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-black: #000000;
+            --deep-crimson: #4a0007;
+            --light-crimson: #ff4d61;
+            --text-main: #ffb3bc;
+            --font-main: 'Google Sans', sans-serif;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; text-transform: lowercase; }
+
         body {
-            font-family: 'Google Sans', sans-serif;
-            background: #050505;
-            color: #666;
-            padding: 40px 20px;
-            overflow-x: hidden;
-            text-transform: lowercase;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            margin: 0; padding: 0;
+            background-color: var(--bg-black);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            height: 100dvh; width: 100vw;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+            overscroll-behavior: none;
         }
 
-        .header { text-align: center; margin-bottom: 40px; }
-        .header h1 { color: #444; font-size: 1.8em; margin-bottom: 8px; font-weight: 500; letter-spacing: -0.5px; }
-        .header p { color: #333; font-size: 0.9em; font-weight: 500; }
-
-        .status-msg { text-align: center; font-size: 0.75em; margin-bottom: 30px; color: #333; }
-        .status-msg.error { color: #a55; }
-        .status-msg.active { color: #4a4; }
-
-        .controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 30px; flex-wrap: wrap; }
-        
-        input[type="text"] {
-            background: #111;
-            border: 1px solid #222;
-            padding: 12px 15px;
-            border-radius: 6px;
-            color: #888;
-            font-family: 'Google Sans', sans-serif;
-            font-size: 0.9em;
-            outline: none;
-            width: 200px;
+        #game-layout {
+            flex: 1; display: flex; flex-direction: column;
+            max-width: 500px; margin: 0 auto; width: 100%; height: 100%;
         }
-        input[type="text"]:focus { border-color: #444; }
+
+        header { padding: 15px 20px; border-bottom: 1px solid var(--deep-crimson); background: var(--bg-black); }
+
+        h1 { margin: 0 0 10px 0; font-size: 0.9rem; letter-spacing: 2px; color: var(--light-crimson); text-align: center; font-weight: 700; }
+
+        #status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 0.75rem; }
+        .stat-item { display: flex; flex-direction: column; align-items: center; }
+        .stat-label { color: var(--deep-crimson); margin-bottom: 2px; font-weight: 700; }
+        .stat-val { color: var(--text-main); font-weight: 500; }
+
+        #buff-indicator {
+            display: flex; justify-content: center; flex-wrap: wrap; gap: 8px;
+            margin-top: 8px; font-size: 0.65rem; font-weight: 700; min-height: 12px;
+        }
+
+        .buff { color: #00ffcc; }
+        .buff-haunt { color: #9d81ff; font-style: italic; }
+        .buff-well-rested { color: #ffd700; text-shadow: 0 0 5px #ffd700; }
+        .blade-status { color: #ff0000; text-shadow: 0 0 5px #ff0000; }
+        .glove-status { color: #00ffcc; text-shadow: 0 0 5px #00ffcc; }
+        .daniel-status { color: #fff; text-shadow: 0 0 8px #00f2ff; font-style: italic; }
+
+        #log-container {
+            flex: 1; overflow-y: auto; padding: 20px;
+            display: flex; flex-direction: column; gap: 14px;
+            -webkit-overflow-scrolling: touch;
+            mask-image: linear-gradient(to bottom, transparent, black 10%);
+        }
+
+        .log-entry { font-size: 0.85rem; line-height: 1.6; animation: fadeIn 0.3s ease-out; }
+        .log-entry.story { color: var(--light-crimson); border-left: 2px solid var(--deep-crimson); padding-left: 10px; }
+        .log-entry.neal { color: #ff0000; font-style: italic; border: 1px solid #4a0007; padding: 8px; border-radius: 4px; background: rgba(74, 0, 7, 0.2); }
+        .log-entry.daniel-msg { color: #00f2ff; font-style: italic; border: 1px solid #004d4d; padding: 8px; border-radius: 4px; background: rgba(0, 242, 255, 0.05); }
+        .log-entry.danger { color: #ff0000; font-weight: 700; }
+        .log-entry.buff-msg { color: #00ffcc; font-style: italic; }
+        .log-entry.haunt-msg { color: #9d81ff; }
+        .log-entry.success { color: #00ffcc; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        #controls-area {
+            padding: 20px; background: var(--bg-black);
+            border-top: 1px solid var(--deep-crimson);
+            display: flex; flex-direction: column; gap: 8px;
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
+        }
+
+        .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .button-row.single { grid-template-columns: 1fr; }
 
         button {
-            padding: 12px 35px;
-            font-size: 0.95em;
-            border: 1px solid #222;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 500;
-            font-family: 'Google Sans', sans-serif;
-            background: #111;
-            color: #555;
-            text-transform: lowercase;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            background: var(--bg-black); border: 1px solid var(--deep-crimson);
+            color: var(--light-crimson); padding: 12px 0;
+            font-family: var(--font-main); font-size: 0.8rem; font-weight: 500;
+            border-radius: 4px; cursor: pointer;
+            transition: background 0.2s;
         }
-        button:hover:not(:disabled) { background: #222; border-color: #333; color: #888; }
-        button:disabled { opacity: 0.3; cursor: not-allowed; }
-        
-        #reconnectBtn { background: #201010; border-color: #402020; color: #a05050; display: none; }
 
-        .overall-score {
-            text-align: center;
-            margin-bottom: 40px;
-            padding: 40px;
-            background: linear-gradient(180deg, #0f0f0f 0%, #050505 100%);
-            border-radius: 12px;
-            border: 1px solid #1a1a1a;
-            width: 100%;
-            max-width: 800px;
-        }
-        .overall-score h2 { font-size: 0.9em; color: #444; margin-bottom: 10px; font-weight: 500; }
-        .score-value {
-            font-size: 4em;
-            color: #888;
-            font-weight: 500;
-            letter-spacing: -2px;
-            height: 1.2em;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .timer { color: #333; font-size: 0.9em; margin-top: 15px; font-weight: 500; }
+        button:active { background: var(--deep-crimson); color: white; }
+        button.combat-btn { border-color: #ff0000; color: #ff0000; font-weight: 700; }
+        button.elec-btn { border-color: #00f2ff; color: #00f2ff; }
 
-        .leaderboard-wrapper {
-            width: 100%;
-            max-width: 800px;
-            margin: 0 auto 50px auto;
-            border: 1px solid #1a1a1a;
-            border-radius: 8px;
-            background: #080808;
-            overflow: hidden;
+        #modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.98); z-index: 100;
+            display: none; flex-direction: column; justify-content: center; align-items: center;
         }
-        .leaderboard-header {
-            padding: 15px 20px;
-            background: #0c0c0c;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #1a1a1a;
-            color: #555;
-            font-size: 0.9em;
-        }
-        .leaderboard-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
-        .leaderboard-table th { text-align: left; padding: 12px 20px; color: #333; border-bottom: 1px solid #111; font-weight: 500; }
-        .leaderboard-table td { padding: 12px 20px; color: #666; border-bottom: 1px solid #0f0f0f; }
-        .leaderboard-content { height: auto; max-height: 400px; overflow-y: auto; background: #080808; }
 
-        .benchmark-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
-            gap: 20px; 
-            width: 100%;
-            max-width: 1000px;
-        }
-        .benchmark-card { 
-            background: #0c0c0c; 
-            border-radius: 8px; 
-            padding: 24px; 
-            border: 1px solid #1a1a1a; 
-            transition: all 0.3s ease; 
-        }
-        .benchmark-card.running { border-color: #2a2a2a; background: #0e0e0e; }
-        .benchmark-title { color: #555; font-size: 0.9em; margin-bottom: 12px; font-weight: 500; display: flex; justify-content: space-between; }
-        .benchmark-score { color: #777; font-size: 2.2em; font-weight: 500; margin: 15px 0; height: 1.2em; display: flex; align-items: center; }
-        .progress-bar { width: 100%; height: 2px; background: #111; margin: 20px 0; border-radius: 1px; }
-        .progress-fill { height: 100%; background: #444; width: 0%; transition: width 0.1s linear; }
-        .metric { display: flex; justify-content: space-between; font-size: 0.85em; color: #444; margin: 4px 0; }
-        
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #050505; }
-        ::-webkit-scrollbar-thumb { background: #222; border-radius: 3px; }
+        #modal-overlay.open { display: flex; }
+        .modal-content { width: 85%; max-width: 400px; display: flex; flex-direction: column; gap: 20px; }
+        #inventory-list { display: flex; flex-direction: column; gap: 10px; max-height: 50vh; overflow-y: auto; }
+        .inv-item { border-bottom: 1px solid var(--deep-crimson); padding: 12px 0; display: flex; justify-content: space-between; align-items: center; }
+        .inv-use { color: var(--light-crimson); font-weight: 700; font-size: 0.75rem; }
+        .btn-exit { border-color: var(--light-crimson); margin-top: 10px; }
+
+        .victory-screen { text-align: center; color: white; animation: fadeIn 2s ease-in; }
+        .dedication { margin-top: 30px; font-size: 0.6rem; color: #4a0007; font-style: italic; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Advanced System Benchmark</h1>
-        <p>Unpredictable Logic Stress Test / Global Leaderboard</p>
-    </div>
 
-    <div class="status-msg" id="authStatus">Initializing secure session...</div>
-
-    <div class="controls">
-        <input type="text" id="userName" placeholder="enter your name" maxlength="15">
-        <button id="startBtn" onclick="startBenchmark()" disabled>start</button>
-        <button id="stopBtn" onclick="stopBenchmark()" disabled>stop</button>
-        <button id="reconnectBtn" onclick="initAuth()">reconnect</button>
-    </div>
-
-    <div class="overall-score">
-        <h2>System performance score</h2>
-        <div class="score-value" id="overallScore">0</div>
-        <div class="timer" id="timer">0.0s / 60.0s</div>
-    </div>
-
-    <div class="leaderboard-wrapper">
-        <div class="leaderboard-header">
-            <span>Top Global Rankings</span>
-            <span style="font-size: 0.8em; opacity: 0.5;" id="path-indicator">PATH: /leaderboard</span>
+<div id="game-layout">
+    <header>
+        <h1>the lost tower</h1>
+        <div id="status-grid">
+            <div class="stat-item"><span class="stat-label">alt</span><span id="stat-alt" class="stat-val">0m</span></div>
+            <div class="stat-item"><span class="stat-label">hp</span><span id="stat-hp" class="stat-val">100%</span></div>
+            <div class="stat-item"><span class="stat-label">nrg</span><span id="stat-nrg" class="stat-val">100%</span></div>
         </div>
-        <div class="leaderboard-content" id="leaderboardContent">
-            <table class="leaderboard-table">
-                <thead>
-                    <tr>
-                        <th style="width: 50px">#</th>
-                        <th>name</th>
-                        <th style="text-align: right;">score</th>
-                        <th style="text-align: right;">date</th>
-                    </tr>
-                </thead>
-                <tbody id="leaderboard-body">
-                    <tr><td colspan="4" style="text-align: center; padding: 30px;">connecting to global database...</td></tr>
-                </tbody>
-            </table>
+        <div id="buff-indicator"></div>
+    </header>
+
+    <div id="log-container"></div>
+
+    <div id="controls-area">
+        <div id="context-actions" class="button-row single hidden"></div>
+        <div class="button-row">
+            <button id="btn-climb" onclick="game.climb()">climb</button>
+            <button onclick="game.inspect()">scout</button>
+        </div>
+        <div class="button-row">
+            <button onclick="game.rest()">rest</button>
+            <button onclick="game.ui.toggleInventory()">backpack</button>
         </div>
     </div>
+</div>
 
-    <div class="benchmark-grid" id="benchmarkGrid"></div>
+<div id="modal-overlay">
+    <div class="modal-content">
+        <div style="text-align: center; font-weight: 700; color: var(--light-crimson);">storage</div>
+        <div id="inventory-list"></div>
+        <button class="btn-exit" onclick="game.ui.toggleInventory()">exit</button>
+    </div>
+</div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+<script>
+const ITEMS = {
+    water: { name: 'water', effect: { nrg: 15 } },
+    meds: { name: 'meds', effect: { hp: 40 } },
+    wrench: { name: 'heavy wrench', type: 'tool' },
+    drink: { name: 'nrg drink', effect: { nrg: 80, hp: -8 } },
+    ramen: { name: 'instant ramen', effect: { saturated: 15, energized: true, regenHp: 20 }, requireRest: true },
+    blade: { name: 'crimson blade', type: 'weapon' },
+    gloves: { name: 'climbing gloves', type: 'gear' }
+};
 
-        // --- CONFIGURATION ---
-        // CHANGED: Defaulting to FALSE as requested.
-        // Set to TRUE only if you need to debug in the Canvas Preview environment.
-        const IS_CANVAS_ENV = false; 
-
-        const prodConfig = {
-            apiKey: "AIzaSyCjSl69biNUauSyc5PY6SmUYfcpIwv43OI",
-            authDomain: "benchbackend.firebaseapp.com",
-            projectId: "benchbackend",
-            storageBucket: "benchbackend.firebasestorage.app",
-            messagingSenderId: "964026070166",
-            appId: "1:964026070166:web:71c4a6eb59edfab03f7eb7"
+class Game {
+    constructor() {
+        this.p = { 
+            hp: 100, nrg: 100, 
+            hasBlade: false,
+            hasGloves: false,
+            inv: [...Array(3).fill('water'), 'wrench'] 
         };
+        this.h = 0;
+        this.maxH = 50000;
+        this.nextSafe = 1200;
+        this.actions = 0;
+        this.cycleActions = 0;
+        this.nealDist = 1000;
+        this.danielDist = 2000;
+        this.hasNeal = false;
+        this.hasDaniel = false;
+        this.isNight = false;
+        this.isSafe = false;
+        this.isRestArea = false;
+        this.saturatedTurns = 0;
+        this.wellRestedTurns = 0;
+        this.hauntedTurns = 0;
+        this.hauntCooldown = 0;
+        this.hasSeenEricPoster = false;
+        this.energized = false;
+        this.activeEvent = null;
+        this.ui = new UI();
+    }
 
-        const isCanvas = typeof __firebase_config !== 'undefined';
-        const firebaseConfig = isCanvas ? JSON.parse(__firebase_config) : prodConfig;
-        const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'benchmark-default';
+    start() {
+        this.ui.log(`"the forest floor is a distant memory. the climb begins."`, 'story');
+        this.ui.update();
+    }
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        let user = null;
-        let unsubscribeLeaderboard = null;
-
-        // --- EXPOSE TO WINDOW ---
-        window.initAuth = async function(retries = 5) {
-            updateStatus("", "connecting to database...");
-            try {
-                if (initialToken && isCanvas) {
-                    await signInWithCustomToken(auth, initialToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Auth error:", error);
-                if (retries > 0) {
-                    setTimeout(() => window.initAuth(retries - 1), 1500);
-                } else {
-                    updateStatus("error", "connection failed - offline mode");
-                    document.getElementById('reconnectBtn').style.display = 'inline-block';
-                    document.getElementById('startBtn').disabled = false;
-                }
-            }
-        }
-
-        onAuthStateChanged(auth, (u) => {
-            user = u;
-            if (u) {
-                updateStatus("active", "connected securely");
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('reconnectBtn').style.display = 'none';
-                setupLeaderboard();
-            }
-        });
-
-        function updateStatus(type, msg) {
-            const el = document.getElementById('authStatus');
-            el.className = `status-msg ${type}`;
-            el.textContent = msg;
-        }
-
-        function setupLeaderboard() {
-            if (!user) return;
-            if (unsubscribeLeaderboard) unsubscribeLeaderboard();
-
-            let q;
-            
-            if (IS_CANVAS_ENV && isCanvas) {
-                // Nested path + Client-side sort (for Preview/Canvas)
-                const colRef = collection(db, 'artifacts', currentAppId, 'public', 'data', 'leaderboard');
-                document.getElementById('path-indicator').textContent = "ENV: PREVIEW";
-                q = query(colRef); 
-            } else {
-                // Root path + Server-side sort (for Production)
-                const colRef = collection(db, 'leaderboard');
-                document.getElementById('path-indicator').textContent = "ENV: PROD";
-                q = query(colRef, orderBy("score", "desc"), limit(20));
-            }
-
-            unsubscribeLeaderboard = onSnapshot(q, (snapshot) => {
-                const entries = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    if (data.score) entries.push({ ...data, id: doc.id });
-                });
-
-                // Manual sort fallback for Canvas env or missing index
-                if (IS_CANVAS_ENV || entries.length < 20) {
-                    entries.sort((a, b) => b.score - a.score);
-                }
-
-                renderLeaderboard(entries.slice(0, 15));
-            }, (error) => {
-                console.error("Leaderboard error:", error);
-                if (error.code === 'permission-denied') {
-                    updateStatus("error", "database permission denied - check rules");
-                }
-            });
-        }
-
-        function renderLeaderboard(data) {
-            const tbody = document.getElementById('leaderboard-body');
-            if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 30px;">no global scores yet.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = data.map((entry, index) => {
-                const date = entry.timestamp ? new Date(entry.timestamp.toDate()).toLocaleDateString() : 'recent';
-                const isMe = user && entry.uid === user.uid ? 'color: #ccc; font-weight: 500;' : '';
-                return `
-                    <tr style="${isMe}">
-                        <td>${index + 1}</td>
-                        <td>${entry.name || 'anonymous'}</td>
-                        <td style="text-align: right;">${Math.floor(entry.score).toLocaleString()}</td>
-                        <td style="text-align: right; color: #444;">${date}</td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        window.uploadScore = async function(name, score) {
-            if (!user) return;
-            
-            try {
-                let colRef;
-                if (IS_CANVAS_ENV && isCanvas) {
-                    colRef = collection(db, 'artifacts', currentAppId, 'public', 'data', 'leaderboard');
-                } else {
-                    colRef = collection(db, 'leaderboard');
-                }
-
-                await addDoc(colRef, {
-                    uid: user.uid,
-                    name: name || 'user',
-                    score: Number(score),
-                    timestamp: serverTimestamp(),
-                    device: navigator.platform || 'unknown'
-                });
-                
-                updateStatus("active", "score synchronized!");
-            } catch (err) {
-                console.error("Upload error:", err);
-                updateStatus("error", "upload failed: check permissions");
-            }
+    getClimbPhrase() {
+        if (this.hauntedTurns > 0) {
+            const haunts = [
+                `"an eric is whispering my name. i'm trying to ignore the pull."`,
+                `"a spectre is following me. it's just a distraction. focus."`,
+                `"the eric's eyes are like empty sockets. i won't look."`,
+                `"i can hear the spectre's nails scratching the metal below me."`,
+                `"the air grows cold wherever the eric drifts."`,
+                `"a pale hand is resting on the rung above mine. then it vanishes."`,
+                `"the wind sounds like eric's laughter today. hollow and dry."`,
+                `"i think i see eric standing on a ledge across the tower. he's not waving."`,
+                `"the eric is mirroring my movements. every pull, every breath."`,
+                `"a heavy silence falls. even the tower stops groaning when the eric is close."`,
+                `"my grip feels heavy, as if the eric is hanging onto my legs."`,
+                `"the eric's face is reflected in the rusted metal. it's just static."`,
+                `"he's singing a song i used to know. i wish he would stop."`,
+                `"the eric is pointing upward. i don't know if he's helping or leading me to a trap."`,
+                `"i feel a cold breath on the back of my neck. 'keep going,' it whispers."`
+            ];
+            return haunts[Math.floor(Math.random() * haunts.length)];
         }
         
-        // Start Auth
-        window.initAuth();
-    </script>
-
-    <script>
-        // --- CORE BENCHMARK ENGINE (Optimized) ---
-        const BENCH_CONFIG = {
-            duration: 60000,
-            tickRate: 10,
-            calcChunk: 100
-        };
-
-        const TEST_SUITE = [
-            { id: 'fib', title: 'logic: fibonacci', unit: 'ops', weight: 0.8, fn: (n) => { const f=(x)=>x<2?x:f(x-1)+f(x-2); f(18); } },
-            { id: 'prime', title: 'math: prime hunt', unit: 'found', weight: 1.2, fn: () => { 
-                const s = 10000; const p = new Uint8Array(s); 
-                for(let i=2;i*i<s;i++) if(!p[i]) for(let j=i*i;j<s;j+=i) p[j]=1; 
-            }},
-            { id: 'float', title: 'math: float stress', unit: 'flops', weight: 0.9, fn: () => { 
-                for(let i=0;i<5000;i++) Math.sin(Math.random()) * Math.tan(Math.random()); 
-            }},
-            { id: 'matrix', title: 'compute: matrix', unit: 'ops', weight: 1.0, fn: () => {
-                const s=30; const a=new Float32Array(s*s); const b=new Float32Array(s*s);
-                for(let i=0;i<s*s;i++) a[i]=b[i]=Math.random();
-            }},
-            { id: 'json', title: 'io: json cycle', unit: 'ops/s', weight: 1.1, fn: () => {
-                JSON.parse(JSON.stringify({data: Array(500).fill(Math.random())}));
-            }},
-            { id: 'dom', title: 'render: dom stress', unit: 'nodes', weight: 0.7, fn: () => {
-                const d = document.createElement('div');
-                for(let i=0;i<500;i++) { const s=document.createElement('span'); s.textContent=i; d.appendChild(s); }
-            }},
-            { id: 'sha', title: 'crypto: hashing', unit: 'h/s', weight: 1.3, fn: () => {
-                let h=0x811c9dc5; const s="bench"+Math.random();
-                for(let i=0;i<s.length;i++) h^=s.charCodeAt(i), h=Math.imul(h,0x01000193);
-            }},
-            { id: 'sort', title: 'array: quicksort', unit: 'sorts', weight: 0.85, fn: () => {
-                const a=Float64Array.from({length:1000}, ()=>Math.random()); a.sort();
-            }}
+        if (this.p.hp < 30) {
+            const hurt = [
+                `"my vision is blurring. the blood on the rungs makes them slippery."`,
+                `"each pull is a scream from my muscles."`,
+                `"i can't feel my fingers anymore. just the cold iron."`,
+                `"shaking... i'm shaking so hard the tower feels like it's vibrating."`,
+                `"don't pass out. don't let go. stay awake."`
+            ];
+            return hurt[Math.floor(Math.random() * hurt.length)];
+        }
+        
+        if (this.wellRestedTurns > 0) {
+            const rested = [
+                `"the warmth of the cabin is still in my bones."`,
+                `"i feel like i could climb to the moon right now."`,
+                `"my grip is perfect. the tower feels smaller today."`,
+                `"no pain, just steady progress."`,
+                `"the rhythm of the climb is finally second nature."`
+            ];
+            return rested[Math.floor(Math.random() * rested.length)];
+        }
+        
+        const general = [
+            "one rung at a time.", "don't look down.", "slick metal, cold grip.", "the tower groans.", 
+            "rust flakes in my eyes.", "step. reach. pull.", "ghost on a wire.", "the rungs are getting thinner.", 
+            "keep the rhythm.", "forget the fear.", "the wind is trying to peel me off.", "clouds are passing through me.",
+            "the metal is humming a low, dead note.", "my shadow is a long needle on the rungs.", "staring at the rust patterns.",
+            "gravity is a heavy coat i'm trying to take off.", "each bolt is a tiny milestone.", "the sky is a deep, bruised purple.",
+            "my breath is the only sound in the world.", "the tower stretches forever into the dark.", "my knuckles are white as bone.",
+            "every muscle is a tight wire.", "i am a speck on a monument of rust.", "the horizon is starting to curve.",
+            "up is the only direction left in the universe.", "i've forgotten what flat ground feels like.", "the silence up here is heavy.",
+            "the rungs are warm from the friction of my climb.", "i'm becoming part of the machine.", "just keep moving."
         ];
+        return `"${general[Math.floor(Math.random() * general.length)]}"`;
+    }
 
-        let state = {
-            running: false,
-            start: 0,
-            scores: {},
-            iters: {},
-            timers: [],
-            uiTimer: null
-        };
-
-        function initUI() {
-            const grid = document.getElementById('benchmarkGrid');
-            grid.innerHTML = '';
-            
-            TEST_SUITE.forEach(t => {
-                state.scores[t.id] = 0;
-                state.iters[t.id] = 0;
-                
-                const div = document.createElement('div');
-                div.className = 'benchmark-card';
-                div.id = `card-${t.id}`;
-                div.innerHTML = `
-                    <div class="benchmark-title">${t.title} <span id="status-${t.id}">ready</span></div>
-                    <div class="benchmark-score" id="score-${t.id}">0</div>
-                    <div class="progress-bar"><div class="progress-fill" id="prog-${t.id}"></div></div>
-                    <div class="metric"><span>${t.unit}</span><span id="iter-${t.id}">0</span></div>
-                `;
-                grid.appendChild(div);
-            });
+    tick(isSafeAction = false) {
+        if (this.isSafe || isSafeAction) {
+            this.ui.update();
+            return;
         }
 
-        window.startBenchmark = function() {
-            if (state.running) return;
-            state.running = true;
-            state.start = Date.now();
-            
-            document.getElementById('startBtn').disabled = true;
-            document.getElementById('userName').disabled = true;
-            document.getElementById('stopBtn').disabled = false;
-            
-            TEST_SUITE.forEach(t => {
-                state.scores[t.id] = 0;
-                state.iters[t.id] = 0;
-                document.getElementById(`card-${t.id}`).classList.add('running');
-                document.getElementById(`status-${t.id}`).textContent = "running";
-            });
+        this.actions++;
+        this.cycleActions++;
 
-            // Start Logic Loops
-            TEST_SUITE.forEach(t => {
-                const interval = setInterval(() => {
-                    if (!state.running) return;
-                    const batchStart = performance.now();
-                    let ops = 0;
-                    while (performance.now() - batchStart < BENCH_CONFIG.calcChunk) {
-                        t.fn();
-                        ops++;
-                    }
-                    state.iters[t.id] += ops;
-                    state.scores[t.id] += (ops * t.weight * 0.5); 
-                }, BENCH_CONFIG.tickRate);
-                state.timers.push(interval);
-            });
+        if (this.saturatedTurns > 0) {
+            this.p.hp = Math.min(100, this.p.hp + 20);
+            this.saturatedTurns--;
+        }
+        if (this.wellRestedTurns > 0) {
+            this.p.hp = Math.min(100, this.p.hp + 35);
+            this.wellRestedTurns--;
+            if (this.wellRestedTurns === 0) this.ui.log(`"the comfort of the cabin has finally worn off."`);
+        }
 
-            animate();
-        };
-
-        function animate() {
-            if (!state.running) return;
-
-            const now = Date.now();
-            const elapsed = now - state.start;
-            
-            document.getElementById('timer').textContent = `${(elapsed/1000).toFixed(1)}s / ${(BENCH_CONFIG.duration/1000).toFixed(1)}s`;
-
-            let totalScore = 0;
-            TEST_SUITE.forEach(t => {
-                const pct = Math.min(100, (elapsed / BENCH_CONFIG.duration) * 100);
-                document.getElementById(`prog-${t.id}`).style.width = `${pct}%`;
-                document.getElementById(`score-${t.id}`).textContent = Math.floor(state.scores[t.id]).toLocaleString();
-                document.getElementById(`iter-${t.id}`).textContent = Math.floor(state.iters[t.id]).toLocaleString();
-                totalScore += state.scores[t.id];
-            });
-
-            const avgScore = totalScore / TEST_SUITE.length;
-            document.getElementById('overallScore').textContent = Math.floor(avgScore).toLocaleString();
-
-            if (elapsed >= BENCH_CONFIG.duration) {
-                window.stopBenchmark();
-            } else {
-                requestAnimationFrame(animate);
+        const cycleLimit = this.isNight ? 25 : 30;
+        if (this.cycleActions >= cycleLimit) {
+            this.isNight = !this.isNight;
+            this.cycleActions = 0;
+            this.ui.log(this.isNight ? `"the sun vanishes. night has come."` : `"dawn breaks."`, 'story');
+            if (!this.isNight) {
+                this.hasNeal = false;
+                this.hasDaniel = false;
+                this.isRestArea = false;
             }
         }
 
-        window.stopBenchmark = function() {
-            state.running = false;
-            state.timers.forEach(clearInterval);
-            state.timers = [];
+        // Eric Logic
+        if (this.hauntedTurns > 0) {
+            this.hauntedTurns--;
+            if (this.hauntedTurns === 0) {
+                this.ui.log(this.hasSeenEricPoster ? `"the eric has finally drifted away."` : `"the spectre has vanished."`);
+                this.hauntCooldown = 20;
+            }
+        } else if (this.hauntCooldown > 0) {
+            this.hauntCooldown--;
+        } else if (Math.random() < 0.1) {
+            this.hauntedTurns = 5;
+            this.ui.log(this.hasSeenEricPoster ? `"an eric has appeared. it's just watching. unsettling."` : `"a spectre is drifting beside the tower. it's distracting."`, 'haunt-msg');
+        }
 
-            const totalScore = Object.values(state.scores).reduce((a,b)=>a+b,0) / TEST_SUITE.length;
-            
-            document.getElementById('startBtn').disabled = false;
-            document.getElementById('userName').disabled = false;
-            document.getElementById('stopBtn').disabled = true;
+        // Neal Logic
+        if (this.isNight && !this.hasNeal && Math.random() < 0.12) {
+            this.hasNeal = true;
+            this.nealDist = 1200;
+            this.ui.log(`"the clicking sound... the neal is back."`, 'neal');
+        }
 
-            TEST_SUITE.forEach(t => {
-                document.getElementById(`card-${t.id}`).classList.remove('running');
-                document.getElementById(`status-${t.id}`).textContent = "done";
-                document.getElementById(`prog-${t.id}`).style.width = '100%';
-            });
+        // Daniel Logic
+        if (this.h > 15000 && !this.hasDaniel && this.isNight) {
+            if (Math.random() < 0.05 || (this.hasNeal && Math.random() < 0.60)) {
+                this.hasDaniel = true;
+                this.danielDist = 1500;
+                this.ui.log(`"i see a blue flicker above. static is making my hair stand up. i think a daniel is here."`, 'daniel-msg');
+            }
+        }
 
-            const name = document.getElementById('userName').value;
-            window.uploadScore(name, totalScore);
+        // Neal Movement
+        if (this.hasNeal) {
+            this.nealDist -= 600;
+            if (this.nealDist <= 100) this.ui.log(`"the neal is right behind me! i can hear the metal rattling!"`, 'danger');
+            if (this.nealDist <= 0) this.triggerNealEncounter();
+        }
+
+        // Daniel Movement
+        if (this.hasDaniel) {
+            this.danielDist -= (500 + Math.floor(Math.random() * 501));
+            if (this.danielDist <= 0) {
+                this.triggerDanielEncounter();
+                this.danielDist = 1200;
+            }
+        }
+
+        if (this.p.hp <= 0) this.end("the tower claimed me.");
+        this.ui.update();
+    }
+
+    climb() {
+        if (this.activeEvent) return;
+        this.isSafe = false;
+        this.isRestArea = false;
+
+        let cost = 8 + Math.floor(this.h / 1500); 
+        if (this.isNight) cost += 6;
+        if (this.hasNeal) cost += 4;
+        if (this.hasDaniel) cost += 3;
+        if (this.p.hasGloves) cost -= 2;
+
+        if (this.p.nrg < cost) {
+            this.ui.log(`"no energy left. i have to rest."`, 'danger');
+            return;
+        }
+
+        this.p.nrg -= cost;
+        let gain = 20 + Math.floor(Math.random() * 25);
+        if (this.p.hasGloves) gain = Math.floor(gain * 1.75); 
+        if (this.wellRestedTurns > 0) gain = Math.floor(gain * 1.4);
+        
+        this.h += gain;
+        this.ui.log(`${this.getClimbPhrase()} (+${gain}m)`);
+
+        if (this.h >= this.nextSafe) {
+            this.ui.log(`"found a maintenance cabin. climate control hums inside."`, 'story');
+            this.ui.log(`"scavenged: 5 ramens, 5 waters, 10 nrg drinks."`, 'success');
+            for(let i=0; i<5; i++) { this.p.inv.push('ramen'); this.p.inv.push('water'); }
+            for(let i=0; i<10; i++) this.p.inv.push('drink');
+            this.isSafe = true;
+            this.hasNeal = false; this.hasDaniel = false;
+            this.nextSafe += (1500 + Math.random() * 1500);
+        } else {
+            if (Math.random() < 0.20) {
+                this.ui.log(`"a service ledge. enough space to sit."`);
+                this.isRestArea = true;
+            }
+        }
+
+        if (this.h >= this.maxH) this.win();
+        this.tick();
+    }
+
+    rest() {
+        if (this.activeEvent) return;
+        let nrgRec, hpRec;
+        
+        if (this.isSafe) {
+            const safeDial = [
+                `"the synthetic air in the cabin is sweet. i sleep deeply for the first time in days."`,
+                `"i found a functional cot. it feels like a cloud compared to the rungs."`,
+                `"the cabin shields me from the wind. the silence is absolute and healing."`,
+                `"i watch the clouds pass through the reinforced glass. i'm safe here."`
+            ];
+            this.ui.log(safeDial[Math.floor(Math.random() * safeDial.length)], 'success');
+            nrgRec = 100; hpRec = 20;
+            this.wellRestedTurns = 50;
+        } else if (this.isRestArea) {
+            const ledgeDial = [
+                `"i curl up on the ledge, wrapping my arms around a support beam."`,
+                `"the ledge is hard and cold, but my legs finally stop vibrating from the effort."`,
+                `"i close my eyes, listening to the tower groan in the wind. a brief respite."`,
+                `"the horizon is a thin line of fire. i rest my head against the rust."`
+            ];
+            this.ui.log(ledgeDial[Math.floor(Math.random() * ledgeDial.length)]);
+            nrgRec = this.isNight ? 15 : 30;
+            hpRec = 5;
+        } else {
+            const openDial = [
+                `"i hook my legs through the rungs and dangle. my spine cracks."`,
+                `"hanging by my harness. every gust of wind threatens to wake me up."`,
+                `"this isn't rest. it's just avoiding the inevitable fall."`,
+                `"my hands are cramping even while i try to sleep. i need a ledge."`
+            ];
+            this.ui.log(openDial[Math.floor(Math.random() * openDial.length)], 'danger');
+            nrgRec = this.isNight ? 5 : 10;
+            hpRec = 1;
+        }
+
+        this.p.nrg = Math.min(100, this.p.nrg + nrgRec);
+        this.p.hp = Math.min(100, this.p.hp + hpRec);
+        this.tick(this.isSafe);
+    }
+
+    inspect() {
+        if (this.activeEvent) return;
+        if (this.isSafe) {
+            let found = false;
+            if (!this.p.hasGloves) { this.p.hasGloves = true; this.ui.log(`"found climbing gloves in a locker."`, 'success'); found = true; }
+            if (!this.p.hasBlade) { this.p.hasBlade = true; this.ui.log(`"found a crimson blade under a bench."`, 'success'); found = true; }
+            if (!found) {
+                if (!this.hasSeenEricPoster && Math.random() < 0.3) {
+                    this.hasSeenEricPoster = true;
+                    this.ui.log(`"found a poster: 'BEWARE OF ERIC'. now the hauntings have a name."`, 'story');
+                } else this.ui.log(`"the cabin is empty of more tools."`);
+            }
+            this.tick(true);
+        } else {
+            this.ui.log(`"scouting the frame..."`);
+            if (Math.random() < 0.3) this.triggerEvent();
+            else this.ui.log(`"just more rust."`);
+            this.tick();
+        }
+    }
+
+    triggerDanielEncounter() {
+        const e = {
+            text: `"the daniel sparks! the section ahead is electrified!"`,
+            buttons: [{ label: "push through", class: "elec-btn" }],
+            resolve: () => {
+                if ((this.p.hasGloves && Math.random() < 0.7) || (!this.p.hasGloves && Math.random() < 0.15)) {
+                    this.ui.log(`"i made it through the static."`, 'success');
+                } else {
+                    this.p.hp -= 30; this.h = Math.max(0, this.h - 350);
+                    this.ui.log(`"shocked! i fell 350m before catching a rung!"`, 'danger');
+                }
+                this.activeEvent = null; this.ui.hideContext(); this.tick();
+            }
         };
+        this.activeEvent = e; this.ui.showContext(e);
+    }
 
-        window.onload = initUI;
-    </script>
+    triggerNealEncounter() {
+        if (this.activeEvent) return;
+        let btns = [];
+        if (this.p.hasBlade) btns.push({ label: "attack", class: "combat-btn" });
+        btns.push({ label: "dodge", class: "" });
+
+        const e = {
+            text: `"the neal strikes!"`,
+            buttons: btns,
+            resolve: (choice) => {
+                if (choice === "attack") {
+                    if (Math.random() > 0.2) { this.ui.log(`"i slashed the neal!"`, 'success'); this.hasNeal = false; }
+                    else { this.ui.log(`"missed! it bit me!"`, 'danger'); this.p.hp -= 20; this.nealDist = 200; }
+                } else {
+                    if (Math.random() > 0.4) { this.ui.log(`"dodged it!"`, 'success'); this.hasNeal = false; }
+                    else { this.ui.log(`"it caught me!"`, 'danger'); this.p.hp -= 15; this.nealDist = 200; }
+                }
+                this.activeEvent = null; this.ui.hideContext(); this.tick();
+            }
+        };
+        this.activeEvent = e; this.ui.showContext(e);
+    }
+
+    triggerEvent() {
+        const e = { 
+            text: `"a sealed container."`, btn: "pry", 
+            resolve: () => {
+                if (this.p.inv.includes('wrench')) {
+                    this.ui.log(`"found supplies."`, 'success');
+                    this.p.inv.push('ramen'); this.p.inv.push('water');
+                } else this.ui.log(`"need a wrench."`, 'danger');
+                this.activeEvent = null; this.ui.hideContext(); this.tick();
+            }
+        };
+        this.activeEvent = e; this.ui.showContext({ buttons: [{label: e.btn, class: ""}], resolve: e.resolve });
+    }
+
+    useItem(idx) {
+        const id = this.p.inv[idx];
+        const item = ITEMS[id];
+        if (id === 'ramen' && !this.isSafe && !this.isRestArea) {
+            this.ui.log(`"can't cook while hanging."`, 'danger'); return;
+        }
+
+        if (id === 'ramen') {
+            const dial = [
+                `"the steam hits my face. for a moment, i'm not on a tower. i'm home."`,
+                `"slurping the noodles, i realize how quiet it is up here. the broth is warm."`,
+                `"it's just salt and water, but it's the best thing i've ever tasted."`,
+                `"the heat from the cup seeps into my fingers. my body finally stops shaking."`
+            ];
+            this.ui.log(dial[Math.floor(Math.random() * dial.length)], 'buff-msg');
+        }
+
+        if (item.effect.hp) this.p.hp = Math.min(100, this.p.hp + item.effect.hp);
+        if (item.effect.nrg) this.p.nrg = Math.min(100, this.p.nrg + item.effect.nrg);
+        if (item.effect.regenHp) { this.saturatedTurns = item.effect.saturated; this.energized = true; }
+        this.p.inv.splice(idx, 1);
+        this.ui.renderInv(); this.ui.update();
+    }
+
+    end(msg) {
+        this.ui.log(`"${msg}"`, 'danger');
+        document.getElementById('controls-area').innerHTML = `<button onclick="location.reload()">try again</button>`;
+    }
+
+    win() {
+        this.ui.log(`"i reach the summit. finally... it's over."`, 'story');
+        document.getElementById('controls-area').innerHTML = `<div class="victory-screen"><h2>it is over.</h2><button onclick="location.reload()">climb again</button></div>`;
+    }
+}
+
+class UI {
+    constructor() { this.logEl = document.getElementById('log-container'); }
+    update() {
+        document.getElementById('stat-alt').innerText = `${Math.floor(game.h)}m`;
+        document.getElementById('stat-hp').innerText = `${game.p.hp}%`;
+        document.getElementById('stat-nrg').innerText = `${game.p.nrg}%`;
+        const buffs = document.getElementById('buff-indicator');
+        buffs.innerHTML = '';
+        if (game.p.hasBlade) buffs.innerHTML += `<span class="blade-status">[blade]</span>`;
+        if (game.p.hasGloves) buffs.innerHTML += `<span class="glove-status">[gloves]</span>`;
+        if (game.wellRestedTurns > 0) buffs.innerHTML += `<span class="buff-well-rested">[rested]</span>`;
+        if (game.hauntedTurns > 0) buffs.innerHTML += `<span class="buff-haunt">[${game.hasSeenEricPoster ? 'eric' : 'haunt'}]</span>`;
+        if (game.hasDaniel) buffs.innerHTML += `<span class="daniel-status">[daniel]</span>`;
+        if (game.isSafe) buffs.innerHTML += `<span style="color:#fff">[cabin]</span>`;
+        else if (game.isRestArea) buffs.innerHTML += `<span style="color:#fff">[ledge]</span>`;
+    }
+    log(msg, type = '') {
+        const d = document.createElement('div');
+        d.className = `log-entry ${type}`;
+        d.innerText = msg;
+        this.logEl.appendChild(d);
+        this.logEl.scrollTop = this.logEl.scrollHeight;
+    }
+    showContext(e) {
+        const ctx = document.getElementById('context-actions');
+        ctx.innerHTML = ''; ctx.classList.remove('hidden');
+        e.buttons.forEach(btn => {
+            const b = document.createElement('button');
+            b.innerText = btn.label; b.className = btn.class;
+            b.onclick = () => e.resolve(btn.label);
+            ctx.appendChild(b);
+        });
+        const s = document.createElement('button');
+        s.innerText = "skip"; s.onclick = () => { game.activeEvent = null; this.hideContext(); game.tick(); };
+        ctx.appendChild(s);
+    }
+    hideContext() { document.getElementById('context-actions').classList.add('hidden'); }
+    toggleInventory() { document.getElementById('modal-overlay').classList.toggle('open'); this.renderInv(); }
+    renderInv() {
+        const list = document.getElementById('inventory-list');
+        list.innerHTML = '';
+        const counts = {};
+        game.p.inv.forEach(id => counts[id] = (counts[id] || 0) + 1);
+        Object.keys(counts).forEach(id => {
+            const item = ITEMS[id] || { name: id };
+            const d = document.createElement('div');
+            d.className = 'inv-item';
+            d.innerHTML = `<span>${item.name} (x${counts[id]})</span>`;
+            if (item.effect) {
+                const u = document.createElement('span');
+                u.className = 'inv-use'; u.innerText = 'use';
+                u.onclick = () => { game.useItem(game.p.inv.indexOf(id)); };
+                d.appendChild(u);
+            }
+            list.appendChild(d);
+        });
+    }
+}
+
+const game = new Game();
+window.onload = () => game.start();
+</script>
 </body>
 </html>
