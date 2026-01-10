@@ -238,7 +238,7 @@ class Game {
         this.alanStep = 0;
         this.zenActive = false;
         this.descending = false;
-        this.phase = 0; // 0: Climb Up, 1: Climb Down to 0, 2: Climb Up to 45k
+        this.phase = 0; // 0: Climb Up, 1: Climb Down to 0, 2: Climb Up to 45k (Warzone)
         this.metAlanFirstTime = false;
         this.ui = new UI();
     }
@@ -252,8 +252,20 @@ class Game {
         if (this.hauntedTurns > 0) return `"a spectre is following me. it's just a distraction. focus."`;
         if (this.p.hp < 30) return `"my vision is blurring. the blood on the rungs makes them slippery."`;
         if (this.wellRestedTurns > 0) return `"i feel untouchable. the climb is almost effortless."`;
-        const general = ["one rung at a time.", "don't look down.", "slick metal, cold grip.", "the tower groans.", "step. reach. pull.", "ghost on a wire.", "the rungs are getting thinner.", "keep the rhythm.", "forget the fear."];
-        return `"${general[Math.floor(Math.random() * general.length)]}"`;
+        
+        let phrases = ["one rung at a time.", "don't look down.", "slick metal, cold grip.", "the tower groans.", "step. reach. pull.", "ghost on a wire.", "the rungs are getting thinner.", "keep the rhythm.", "forget the fear."];
+        
+        if (this.h > 20000) {
+            phrases.push(...[
+                "the wind is howling, trying to peel me off the rungs.",
+                "the air is thin. every breath feels like a chore.",
+                "my lungs ache. oxygen is a luxury now.",
+                "the tower sways in the gale. i have to grip tighter.",
+                "it's getting harder to breathe as the sky turns blacker."
+            ]);
+        }
+        
+        return `"${phrases[Math.floor(Math.random() * phrases.length)]}"`;
     }
 
     getDanielLog() {
@@ -293,13 +305,16 @@ class Game {
             this.isNight = !this.isNight;
             this.cycleActions = 0;
             this.ui.log(this.isNight ? `"the sun vanishes. night has come."` : `"dawn breaks."`, 'story');
-            if (!this.isNight) {
+            if (!this.isNight && this.phase !== 2) { // In Phase 2, Neal doesn't leave at dawn
                 this.hasNeal = false;
-                this.isRestArea = false;
             }
+            if (!this.isNight) this.isRestArea = false;
         }
 
         // Eric Logic
+        let hauntChance = 0.10 + (this.hasSeenEricPoster ? 0.15 : 0);
+        if (this.phase === 2) hauntChance *= 1.5; // Warzone multiplier
+
         if (this.hauntedTurns > 0) {
             this.hauntedTurns--;
             if (this.hauntedTurns === 0) {
@@ -308,14 +323,21 @@ class Game {
             }
         } else if (this.hauntCooldown > 0) {
             this.hauntCooldown--;
-        } else if (Math.random() < 0.1 && !this.alanMet) {
+        } else if (Math.random() < hauntChance && !this.alanMet) {
             this.hauntedTurns = 5;
             this.ui.log(`"a spectre is drifting beside the tower. it's distracting."`, 'haunt-msg');
         }
 
-        // Daniel Spawn (45% chance per turn, day/night independent)
+        // Difficulty scaling for spawns
+        const altitudeScale = Math.min(1.0, this.h / 45000); 
+        let spawnMult = (this.phase === 2) ? 1.5 : 1.0;
+
+        const baseDanielChance = (0.05 + (0.40 * altitudeScale)) * spawnMult;
+        const baseNealChance = (0.02 + (0.13 * altitudeScale)) * spawnMult;
+
+        // Daniel Spawn
         if (this.h > 15000 && !this.hasDaniel && this.hasSeenFirstDaniel && !this.alanMet) {
-            if (Math.random() < 0.45) {
+            if (Math.random() < baseDanielChance) {
                 this.hasDaniel = true;
                 this.danielDist = 1500;
                 this.ui.log(this.getDanielLog(), 'daniel-msg');
@@ -323,12 +345,14 @@ class Game {
         }
 
         // Neal Spawn Logic
-        if (this.isNight && !this.hasNeal && Math.random() < 0.15 && !this.alanMet) {
+        // In Phase 2 (Warzone), Neal can spawn at any time (Day or Night)
+        const nealCondition = (this.isNight || this.phase === 2) && !this.hasNeal && !this.alanMet;
+        if (nealCondition && Math.random() < baseNealChance) {
             this.hasNeal = true;
             this.nealDist = 1200;
-            this.ui.log(this.nealEvolved ? `"a jagged shadow moves below. the evolved neal is hunting."` : `"the clicking sound... the neal is back."`, 'neal');
+            const evolvedMsg = this.phase === 2 ? `"the tower is a warzone. the evolved neal has returned to finish me."` : `"a jagged shadow moves below. the evolved neal is hunting."`;
+            this.ui.log(this.nealEvolved ? evolvedMsg : `"the clicking sound... the neal is back."`, 'neal');
             
-            // 30% chance for Daniel to spawn WITH Neal (no double spawn)
             if (!this.hasDaniel && this.h > 15000 && this.hasSeenFirstDaniel && Math.random() < 0.30) {
                 this.hasDaniel = true;
                 this.danielDist = 1500;
@@ -366,8 +390,9 @@ class Game {
         if (this.hasNeal) baseCost += 4;
         if (this.hasDaniel) baseCost += 3;
         if (this.p.hasGloves) baseCost -= 2;
+        if (this.hauntedTurns > 0) baseCost += (this.phase === 2 ? 15 : 5); // Eric slows you more
 
-        if (this.zenActive) baseCost *= 0.4;
+        if (this.zenActive) baseCost *= 0.2; // 80% energy drain reduction
         if (this.wellRestedTurns > 0) baseCost = 0;
 
         const cost = Math.max(0, Math.floor(baseCost));
@@ -385,7 +410,8 @@ class Game {
 
         if (this.p.hasGloves) gain *= 1.75; 
         if (this.saturatedTurns > 0 && this.energized) gain *= 1.35;
-        if (this.zenActive) gain *= 1.5;
+        if (this.zenActive) gain *= 2.2; // +120% distance
+        if (this.hauntedTurns > 0) gain *= (this.phase === 2 ? 0.4 : 0.8); // Eric slows progress
 
         gain = Math.floor(gain);
         
@@ -394,12 +420,13 @@ class Game {
             this.ui.log(`"descending... (-${gain}m)"`);
             if (this.h <= 0) {
                 this.h = 0;
-                this.phase = 2;
+                this.phase = 2; // WARZONE START
                 this.descending = false;
-                this.ui.log(`"the forest floor. i am back at the beginning. i must return to alan."`, 'story');
-                this.ui.updateClimbButton("climb");
+                this.ui.log(`"the forest floor. i am back at the beginning. the tower feels different... hostile."`, 'story');
+                this.ui.log(`"the climb back to alan will be a warzone. everything is faster, stronger."`, 'danger');
+                this.ui.updateClimbButton("final ascent");
             }
-        } else { // Climbing Up (Phase 0 or 2)
+        } else { // Climbing Up
             this.h += gain;
             this.ui.log(`${this.getClimbPhrase()} (+${gain}m)`);
             
@@ -482,7 +509,7 @@ class Game {
             if (!found) {
                 if (!this.hasSeenEricPoster && Math.random() < 0.3) {
                     this.hasSeenEricPoster = true;
-                    this.ui.log(`"found a poster: 'BEWARE OF ERIC'. now the hauntings have a name."`, 'story');
+                    this.ui.log(`"found a poster: 'BEWARE OF ERIC'. hauntings increased."`, 'story');
                 } else this.ui.log(`"the cabin is empty of more tools."`);
             }
             this.tick(true);
@@ -512,10 +539,14 @@ class Game {
             text: `"the daniel sparks! the section ahead is electrified!"`,
             buttons: [{ label: "push through", class: "elec-btn" }],
             resolve: () => {
-                if ((this.p.hasGloves && Math.random() < 0.7) || (!this.p.hasGloves && Math.random() < 0.15)) {
+                const failChance = this.zenActive ? 0.05 : (this.p.hasGloves ? 0.3 : 0.85);
+                if (Math.random() > failChance) {
                     this.ui.log(`"i made it through the static."`, 'success');
                 } else {
-                    this.p.hp -= 30; this.h = this.descending ? Math.min(this.maxH, this.h + 350) : Math.max(0, this.h - 350);
+                    let dmg = 30;
+                    if (this.zenActive) dmg *= 0.1; // 90% resistance
+                    this.p.hp -= dmg; 
+                    this.h = this.descending ? Math.min(this.maxH, this.h + 350) : Math.max(0, this.h - 350);
                     this.ui.log(`"shocked! i slipped 350m!"`, 'danger');
                 }
                 this.activeEvent = null; this.ui.hideContext(); this.tick();
@@ -527,35 +558,76 @@ class Game {
     triggerNealEncounter() {
         if (this.activeEvent) return;
         let btns = [];
-        if (this.p.hasBlade) btns.push({ label: "attack", class: "combat-btn" });
-        btns.push({ label: "dodge", class: "" });
-
-        const dmg = this.nealEvolved ? 45 : 15;
+        if (this.p.hasBlade) btns.push({ label: "attack (blade)", class: "combat-btn" });
+        if (this.p.inv.includes('wrench')) btns.push({ label: "attack (wrench)", class: "combat-btn" });
         
+        btns.push({ label: "dodge", class: "" });
+        if (this.isRestArea) btns.push({ label: "juke", class: "elec-btn" });
+
+        const baseDmg = this.nealEvolved ? 45 : 15;
+        
+        const nealDialogue = [
+            `"the evolved neal's limbs are like obsidian shards, cutting the air."`,
+            `"it emits a frequency that makes my teeth ache. it's faster than before."`,
+            `"those jagged edges... they're not just shadows. they're solid."`,
+            `"the thing below is barely recognizable as the neal i first met."`,
+            `"it's climbing the outer struts with terrifying grace."`
+        ];
+
         const e = {
-            text: this.nealEvolved ? `"the evolved neal strikes! it's massive!"` : `"the neal strikes!"`,
+            text: this.nealEvolved ? nealDialogue[Math.floor(Math.random() * nealDialogue.length)] : `"the neal strikes!"`,
             buttons: btns,
             resolve: (choice) => {
-                let success = false;
-                let giveUpChance = this.nealEvolved ? 0.25 : 1.0;
+                let giveUpChance = (this.nealEvolved || this.phase === 2) ? 0.25 : 1.0;
                 let dodgeChance = this.nealEvolved ? 0.2 : 0.4;
+                if (choice === "juke") dodgeChance = this.nealEvolved ? 0.6 : 0.9;
+                
+                if (this.zenActive) dodgeChance += 0.3; // +30% effectiveness
 
-                if (choice === "attack") {
-                    if (Math.random() > 0.2) { 
-                        this.ui.log(`"i slashed the neal!"`, 'success'); 
+                const wrenchLines = [
+                    `"i swung the heavy wrench, metal clashing against metal."`,
+                    `"a dull thud as the wrench hits neal's shoulder."`,
+                    `"the wrench vibrates as i strike the jagged entity."`,
+                    `"neal shrieks as the heavy tool crushes a segment of its shadow."`,
+                    `"barely connecting, the wrench sends sparks flying."`,
+                    `"i used the leverage to shove neal back with the wrench."`,
+                    `"the wrench is heavy, but it found its mark."`,
+                    `"neal flinched from the weight of the steel."`,
+                    `"a desperate swing connects with neal's midsection."`,
+                    `"the wrench is cold, hard, and effective enough."`
+                ];
+
+                const failLines = [
+                    `"neal's claws rake across my chest!"`,
+                    `"it threw me against the framework!"`,
+                    `"a cold bite into my shoulder... i'm bleeding."`,
+                    `"it lunged faster than i could react."`,
+                    `"the jagged shadow tore into my grip."`
+                ];
+
+                if (choice.includes("attack")) {
+                    let hitChance = choice.includes("blade") ? 0.8 : 0.55;
+                    if (Math.random() < hitChance) {
+                        if (choice.includes("wrench")) this.ui.log(wrenchLines[Math.floor(Math.random() * wrenchLines.length)], 'success');
+                        else this.ui.log(`"i slashed the neal with the crimson blade!"`, 'success');
+
                         if(Math.random() < giveUpChance) { this.hasNeal = false; this.ui.log(`"it retreated."`); }
                         else { this.nealDist = 200; this.ui.log(`"it didn't give up! it's still coming!"`, 'danger'); }
-                    } else { 
-                        this.ui.log(`"missed! it bit me!"`, 'danger'); 
-                        this.p.hp -= (dmg + 5); this.nealDist = 200; 
+                    } else {
+                        this.ui.log(failLines[Math.floor(Math.random() * failLines.length)], 'danger');
+                        let dmg = baseDmg + 5;
+                        if (this.zenActive) dmg *= 0.1;
+                        this.p.hp -= dmg; this.nealDist = 200; 
                     }
                 } else {
                     if (Math.random() < dodgeChance) { 
-                        this.ui.log(`"dodged it!"`, 'success'); 
+                        this.ui.log(choice === "juke" ? `"a perfect juke! neal fumbled the strike!"` : `"dodged it!"`, 'success'); 
                         if(Math.random() < giveUpChance) { this.hasNeal = false; }
                         else { this.nealDist = 200; this.ui.log(`"it recovered instantly!"`, 'danger'); }
                     } else { 
-                        this.ui.log(`"it caught me!"`, 'danger'); 
+                        this.ui.log(failLines[Math.floor(Math.random() * failLines.length)], 'danger');
+                        let dmg = baseDmg;
+                        if (this.zenActive) dmg *= 0.1;
                         this.p.hp -= dmg; this.nealDist = 200; 
                     }
                 }
@@ -599,6 +671,7 @@ class Game {
             this.ui.renderAlanButtons(current.btns);
         } else {
             this.ui.log(`"alan closes his eyes. i feel a strange weight lift from my shoulders."`, 'story');
+            this.ui.log(`"unified peace in mind & body. i am ready."`, 'buff-msg');
             this.zenActive = true;
             this.metAlanFirstTime = true;
             this.alanMet = false;
@@ -621,7 +694,7 @@ class Game {
                 if (this.p.inv.includes('wrench')) {
                     this.ui.log(`"found supplies."`, 'success');
                     this.p.inv.push('ramen'); this.p.inv.push('water');
-                } else this.ui.log(`"need a wrench."`, 'danger');
+                } else this.ui.log(`"need a wrench to pry this open."`, 'danger');
                 this.activeEvent = null; this.ui.hideContext(); this.tick();
             }
         };
@@ -633,6 +706,9 @@ class Game {
         const item = ITEMS[id];
         if (id === 'ramen' && !this.isSafe && !this.isRestArea) {
             this.ui.log(`"can't cook while hanging."`, 'danger'); return;
+        }
+        if (id === 'wrench') {
+            this.ui.log(`"i can't 'use' this here. i'll keep it for defense."`); return;
         }
 
         if (id === 'ramen') this.ui.log(`"the steam hits my face. i feel home for a second."`, 'buff-msg');
@@ -681,14 +757,14 @@ class UI {
         if (game.p.hasBlade) addTag('blade', '[blade]', 'blade-status', 'increases combat effectiveness');
         if (game.p.hasGloves) addTag('gloves', '[gloves]', 'glove-status', 'increases climbing proficiency');
         if (game.wellRestedTurns > 0) addTag('rested', '[rested]', 'buff-well-rested', `0 energy cost for ${game.wellRestedTurns} turns.`);
-        if (game.zenActive) addTag('zen', '[zen]', 'buff-zen', 'extreme focus: -60% nrg use, +50% distance.');
+        if (game.zenActive) addTag('zen', '[zen]', 'buff-zen', 'unified peace: +120% dist, -80% nrg drain, 90% dmg reduction.');
         
         if (game.saturatedTurns > 0) {
             const satLabel = game.energized ? '[energized]' : '[saturated]';
             addTag('sat', satLabel, 'buff-msg', 'healing and increased vitality.');
         }
 
-        if (game.hauntedTurns > 0) addTag('haunt', '[haunt]', 'buff-haunt', 'a presence is distracting you.');
+        if (game.hauntedTurns > 0) addTag('haunt', '[haunt]', 'buff-haunt', 'a presence is distracting and slowing you.');
         if (game.hasDaniel) addTag('daniel', '[daniel]', 'daniel-status', 'electrical build-up nearby.');
     }
 
@@ -766,9 +842,9 @@ class UI {
             const d = document.createElement('div');
             d.className = 'inv-item';
             d.innerHTML = `<span>${item.name} (x${counts[id]})</span>`;
-            if (item.effect) {
+            if (item.effect || id === 'wrench') {
                 const u = document.createElement('span');
-                u.className = 'inv-use'; u.innerText = 'use';
+                u.className = 'inv-use'; u.innerText = id === 'wrench' ? 'info' : 'use';
                 u.onclick = () => { game.useItem(game.p.inv.indexOf(id)); };
                 d.appendChild(u);
             }
