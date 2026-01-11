@@ -1,0 +1,641 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>icy wasteland</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:wght@300..700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0c10;
+            --fg: #d0e0ff;
+            --player: #4fc3f7;
+            --enemy: #ff5252;
+            --boss: #b388ff;
+            --titan: #fff176;
+            --minion: #81c784;
+            --void: #ce93d8;
+            --singularity: #ff4081;
+            --beam: #e0f7fa;
+            --danger: #ff5252;
+            --gold: #ffd700;
+            --shield: #4dd0e1;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Google Sans Code', monospace;
+            text-transform: lowercase;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--fg);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        #game-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        #ascii-layer {
+            white-space: pre;
+            line-height: 1.1;
+            font-size: 8px;
+            letter-spacing: 1px;
+            text-align: center;
+            cursor: crosshair;
+            user-select: none;
+        }
+
+        #ui-layer {
+            padding: 15px;
+            background: rgba(10, 12, 16, 0.95);
+            border-top: 1px solid rgba(208, 224, 255, 0.1);
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            z-index: 50;
+        }
+
+        .stat-box {
+            font-size: 0.8rem;
+            color: var(--player);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .btn {
+            background: transparent;
+            border: 1px solid var(--player);
+            color: var(--player);
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .btn:active {
+            background: var(--player);
+            color: var(--bg);
+            transform: scale(0.95);
+        }
+
+        .btn:disabled {
+            opacity: 0.2;
+            border-color: #444;
+            color: #444;
+        }
+
+        #health-bar {
+            position: absolute;
+            top: 15px; left: 15px; right: 15px;
+            height: 4px; background: #222;
+            z-index: 60;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        #health-fill {
+            height: 100%; background: var(--danger);
+            width: 100%; transition: width 0.3s;
+        }
+
+        #side-menu {
+            position: absolute;
+            left: -250px; top: 0; bottom: 0;
+            width: 220px;
+            background: rgba(10, 12, 16, 0.98);
+            border-right: 1px solid var(--player);
+            z-index: 100;
+            padding: 40px 20px;
+            transition: left 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #side-menu.open { left: 0; }
+        .menu-title { font-size: 1.1rem; color: var(--player); margin-bottom: 5px; }
+        .menu-stat { font-size: 0.75rem; margin-bottom: 2px; opacity: 0.8; }
+
+        .overlay {
+            position: absolute; inset: 0;
+            background: rgba(10, 12, 16, 0.95);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 200; text-align: center;
+        }
+
+        .hidden { display: none !important; }
+        #toast {
+            position: absolute; top: 40px; left: 50%;
+            transform: translateX(-50%); font-size: 0.7rem;
+            color: var(--player); opacity: 0; transition: opacity 0.3s;
+            z-index: 60;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="health-bar"><div id="health-fill"></div></div>
+    <div id="toast">tap to place minion</div>
+
+    <div id="side-menu">
+        <div class="menu-title">fortress core</div>
+        <div class="menu-stat">evolution: <span id="m-tier">0</span>/10</div>
+        <div class="menu-stat">max hp: <span id="m-hp">100</span></div>
+        <div class="menu-stat">range: <span id="m-range">0</span></div>
+        <div class="menu-stat">power: <span id="m-atk">0</span></div>
+        <div class="menu-stat">satellites: <span id="m-sats">0</span></div>
+        <hr style="opacity:0.1; margin: 10px 0;">
+        <button class="btn" id="evolve-btn">evolve (50)</button>
+        <p style="font-size:0.6rem; opacity:0.6">evolve to grow core and add orbital defense rings</p>
+        <button class="btn" onclick="document.getElementById('side-menu').classList.remove('open')" style="margin-top:auto">close</button>
+    </div>
+
+    <div id="game-container">
+        <div id="ascii-layer"></div>
+    </div>
+
+    <div id="ui-layer">
+        <div class="stat-box">
+            <div>shards: <span id="shards">100</span></div>
+            <div>wave: <span id="wave">1</span></div>
+        </div>
+        <div class="stat-box">
+            <button class="btn" id="mode-minion">minion (10)</button>
+        </div>
+        <div class="stat-box" style="text-align: right;">
+            <button class="btn" id="upgrade-range">range (5)</button>
+            <div style="margin-top:5px"></div>
+            <button class="btn" id="upgrade-atk">atk (5)</button>
+        </div>
+    </div>
+
+    <div id="game-over" class="overlay hidden">
+        <h1 style="color: var(--danger);">core frozen</h1>
+        <p style="margin: 10px 0; font-size: 0.8rem;">shards lost to the waste.</p>
+        <button class="btn" onclick="location.reload()" style="padding: 15px;">restart simulation</button>
+    </div>
+
+    <script>
+        const config = {
+            maxWidth: 42,
+            maxHeight: 34,
+            minWidth: 16,
+            minHeight: 12
+        };
+
+        let state = {
+            shards: 100,
+            wave: 1,
+            killsInWave: 0,
+            health: 100,
+            maxHealth: 100,
+            range: 6,
+            attack: 1,
+            tier: 0,
+            enemies: [],
+            minions: [],
+            satellites: [],
+            shields: [],
+            placementMode: false,
+            isGameOver: false,
+            costs: { range: 5, atk: 5, minion: 10, evolve: 50 },
+            currentWidth: config.minWidth,
+            currentHeight: config.minHeight,
+            orbitAngle: 0
+        };
+
+        const terrain_symbols = ["_", "-", "l", "n", "^", "*", "&"];
+        const standard_chars = ["a", "v", "x", "o", "w"];
+
+        function getDistance(p1, p2) {
+            if (!p1 || !p2) return 999;
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
+
+        function createEnemy() {
+            if (state.isGameOver) return;
+            
+            const towerPower = (state.attack * 5) + (state.tier * 60);
+            const waveScale = Math.pow(1.25, state.wave - 1);
+            const healthScaling = (15 + towerPower) * waveScale;
+            const damageScaling = 0.05 + (state.wave * 0.03) + (towerPower * 0.001);
+
+            const side = Math.floor(Math.random() * 4);
+            const w = state.currentWidth;
+            const h = state.currentHeight;
+            let x, y;
+            if (side === 0) { x = Math.random() * w; y = 0; }
+            else if (side === 1) { x = w; y = Math.random() * h; }
+            else if (side === 2) { x = Math.random() * w; y = h; }
+            else { x = 0; y = Math.random() * h; }
+
+            let en = {
+                x, y, 
+                hp: healthScaling,
+                maxHp: healthScaling,
+                speed: 0.07 + (Math.random() * 0.04),
+                damage: damageScaling,
+                char: standard_chars[Math.floor(Math.random() * standard_chars.length)],
+                color: "var(--enemy)",
+                type: 'standard',
+                armor: 1
+            };
+
+            const roll = Math.random();
+            if (roll < 0.06 && state.wave >= 8) {
+                en.type = 'titan';
+                en.char = '¥';
+                en.hp *= 150;
+                en.maxHp = en.hp;
+                en.speed *= 0.132;
+                en.damage *= 20;
+                en.color = "var(--titan)";
+                en.armor = 0.25;
+            } else if (roll < 0.15 && state.wave >= 4) {
+                en.hp *= (25 + state.tier * 8);
+                en.maxHp = en.hp;
+                en.speed *= 0.275;
+                en.damage *= 8;
+                en.color = "var(--boss)";
+                en.armor = 0.6;
+                en.type = 'boss';
+                en.char = 'B';
+            }
+
+            state.enemies.push(en);
+        }
+
+        function updateSatellites() {
+            state.satellites = [];
+            state.shields = [];
+            const ring1_types = [];
+            const ring2_types = [];
+            
+            if (state.tier >= 1) ring1_types.push('basic');
+            if (state.tier >= 2) ring1_types.push('swift');
+            if (state.tier >= 3) ring1_types.push('vaporizer');
+            if (state.tier >= 4) ring1_types.push('void');
+            if (state.tier >= 5) ring1_types.push('singularity');
+            if (state.tier >= 6) ring2_types.push('swift');
+            if (state.tier >= 7) ring2_types.push('vaporizer');
+            if (state.tier >= 8) ring2_types.push('void');
+            if (state.tier >= 9) ring2_types.push('singularity', 'basic');
+            if (state.tier >= 10) ring2_types.push('vaporizer', 'void', 'singularity');
+
+            if (state.tier >= 3) {
+                const count = Math.min(12, state.tier * 1.5);
+                for (let i = 0; i < count; i++) {
+                    state.shields.push({
+                        angleOffset: (i / count) * Math.PI * 2,
+                        dist: 4,
+                        char: i % 2 === 0 ? '(' : ')'
+                    });
+                }
+            }
+
+            ring1_types.forEach((type, i) => {
+                state.satellites.push({
+                    type, ring: 1,
+                    angleOffset: (i / ring1_types.length) * Math.PI * 2,
+                    char: getChar(type),
+                    activeLaser: null, miniLasers: [], orbitStep: 0
+                });
+            });
+
+            ring2_types.forEach((type, i) => {
+                state.satellites.push({
+                    type, ring: 2,
+                    angleOffset: (i / ring2_types.length) * Math.PI * 2,
+                    char: getChar(type),
+                    activeLaser: null, miniLasers: [], orbitStep: 0
+                });
+            });
+        }
+
+        function getChar(type) {
+            const map = { basic: '+', swift: '*', vaporizer: '^', void: '~', singularity: 'Ω' };
+            return map[type] || '?';
+        }
+
+        function update() {
+            if (state.isGameOver) return;
+
+            state.currentWidth = Math.min(config.maxWidth, config.minWidth + (state.wave * 2));
+            state.currentHeight = Math.min(config.maxHeight, config.minHeight + (state.wave * 1.5));
+            const towerPos = { x: state.currentWidth / 2, y: state.currentHeight / 2 };
+
+            if (Math.random() < 0.1 + (state.wave * 0.05)) createEnemy();
+            state.orbitAngle += 0.04;
+
+            const allDefenders = [...state.minions];
+            state.satellites.forEach(sat => {
+                const dist = sat.ring === 1 ? 2.5 : 5.5;
+                sat.x = towerPos.x + Math.cos(state.orbitAngle + sat.angleOffset) * dist;
+                sat.y = towerPos.y + Math.sin(state.orbitAngle + sat.angleOffset) * dist;
+                allDefenders.push(sat);
+            });
+
+            state.shields.forEach(sh => {
+                sh.x = towerPos.x + Math.cos(-state.orbitAngle * 0.7 + sh.angleOffset) * sh.dist;
+                sh.y = towerPos.y + Math.sin(-state.orbitAngle * 0.7 + sh.angleOffset) * sh.dist;
+            });
+
+            allDefenders.forEach(m => {
+                if (m.type === 'vaporizer') {
+                    if (state.enemies.length > 0) {
+                        const target = state.enemies.reduce((prev, curr) => 
+                            getDistance(m, curr) < getDistance(m, prev) ? curr : prev);
+                        if (target && getDistance(m, target) < state.range * 1.3) {
+                            m.activeLaser = { x: target.x, y: target.y };
+                        } else { m.activeLaser = null; }
+                    } else { m.activeLaser = null; }
+                } else if (m.type === 'void') {
+                    m.orbitStep = (m.orbitStep || 0) + 0.12;
+                    m.miniLasers = [];
+                    state.enemies.forEach(en => {
+                        if (getDistance(m, en) <= state.range * 0.7) {
+                            en.hp -= (state.attack * 0.5) * en.armor;
+                        }
+                    });
+                    for(let j=0; j<3; j++) {
+                        const orbPos = {
+                            x: m.x + Math.cos(m.orbitStep + (j/3)*Math.PI*2) * 1.5,
+                            y: m.y + Math.sin(m.orbitStep + (j/3)*Math.PI*2) * 1.5
+                        };
+                        if (state.enemies.length > 0) {
+                            const target = state.enemies.reduce((prev, curr) => 
+                                getDistance(orbPos, curr) < getDistance(orbPos, prev) ? curr : prev);
+                            if (target && getDistance(orbPos, target) < 4) {
+                                m.miniLasers.push({ start: orbPos, end: {x: target.x, y: target.y} });
+                            }
+                        }
+                    }
+                } else if (m.type === 'singularity') {
+                    state.enemies.forEach(en => {
+                        const d = getDistance(m, en);
+                        if (d < state.range * 1.5) {
+                            const pullStrength = 0.08 * (1 - d / (state.range * 1.5));
+                            const angle = Math.atan2(m.y - en.y, m.x - en.x);
+                            en.x += Math.cos(angle) * pullStrength;
+                            en.y += Math.sin(angle) * pullStrength;
+                            en.hp -= (state.attack * 1.2) * en.armor;
+                        }
+                    });
+                }
+            });
+
+            for (let i = state.enemies.length - 1; i >= 0; i--) {
+                const en = state.enemies[i];
+                const angle = Math.atan2(towerPos.y - en.y, towerPos.x - en.x);
+                const dist = getDistance(en, towerPos);
+                
+                en.x += Math.cos(angle) * en.speed;
+                en.y += Math.sin(angle) * en.speed;
+
+                if (dist < 1.3) {
+                    state.health -= en.damage * 70; 
+                    state.enemies.splice(i, 1);
+                    if (state.health <= 0) endGame();
+                    continue;
+                }
+
+                let totalDmgToEn = state.attack * 0.5;
+                allDefenders.forEach(m => {
+                    const mDist = getDistance(en, m);
+                    if (m.type === 'basic' && mDist <= state.range * 0.8) totalDmgToEn += state.attack * 0.3;
+                    else if (m.type === 'swift' && mDist <= state.range) totalDmgToEn += state.attack * 0.25;
+                    else if (m.type === 'vaporizer' && mDist <= state.range * 1.3) totalDmgToEn += state.attack * 0.8;
+                    else if (m.type === 'void') {
+                        m.miniLasers.forEach(laser => {
+                            if (getDistance(laser.end, en) < 0.7) totalDmgToEn += (state.attack * 0.8);
+                        });
+                    } else if (m.type === 'singularity') {
+                        if (mDist < state.range) totalDmgToEn += state.attack * 1.5;
+                    }
+                });
+                
+                en.hp -= (totalDmgToEn * en.armor);
+
+                if (en.hp <= 0) {
+                    state.shards += en.type === 'titan' ? 400 : (en.type === 'boss' ? 120 : 5);
+                    state.killsInWave++;
+                    state.enemies.splice(i, 1);
+                    
+                    if (state.killsInWave >= 12 + (state.wave * 12)) {
+                        state.wave++;
+                        state.killsInWave = 0;
+                        state.health = Math.min(state.maxHealth, state.health + (state.maxHealth * 0.1));
+                    }
+                }
+            }
+
+            render(towerPos, allDefenders);
+            updateUI();
+        }
+
+        function endGame() {
+            state.health = 0;
+            state.isGameOver = true;
+            document.getElementById('game-over').classList.remove('hidden');
+        }
+
+        function render(towerPos, allDefenders) {
+            let grid = [];
+            const tick = Date.now() / 1000;
+            
+            for (let y = 0; y < state.currentHeight; y++) {
+                let row = [];
+                for (let x = 0; x < state.currentWidth; x++) {
+                    const pt = {x, y};
+                    const distToTower = getDistance(pt, towerPos);
+                    let noise = Math.sin(x * 0.4 + tick * 0.5) * Math.cos(y * 0.4 - tick * 0.5);
+                    let intensity = Math.floor(((noise + 1) / 2) * 2);
+                    let light = Math.max(0, 1 - (distToTower / (state.range + 4)));
+                    
+                    allDefenders.forEach(m => {
+                        let mLight = Math.max(0, 0.4 - (getDistance(pt, m) / 6));
+                        light = Math.max(light, mLight);
+                    });
+
+                    let shadeIdx = Math.floor(light * (terrain_symbols.length - 1));
+                    let char = terrain_symbols[Math.min(shadeIdx + intensity, terrain_symbols.length - 1)];
+                    let color = `rgba(208, 224, 255, ${0.1 + light * 0.6})`;
+
+                    state.shields.forEach(sh => {
+                        if (Math.round(sh.x) === x && Math.round(sh.y) === y) {
+                            char = sh.char; color = "var(--shield)";
+                        }
+                    });
+
+                    if (Math.round(towerPos.x) === x && Math.round(towerPos.y) === y) {
+                        char = "§"; color = "var(--player)";
+                        if (state.tier >= 4) { char = "X"; color = "var(--gold)"; }
+                        if (state.tier >= 8) { char = "Ω"; color = "var(--void)"; }
+                    }
+
+                    allDefenders.forEach(m => {
+                        if (Math.round(m.x) === x && Math.round(m.y) === y) {
+                            char = m.char; 
+                            if (m.type === 'void') color = "var(--void)";
+                            else if (m.type === 'singularity') color = "var(--singularity)";
+                            else color = "var(--minion)";
+                            if (m.ring) color = "var(--player)";
+                        }
+                        if (m.activeLaser) {
+                            if (getPointToLineDist(pt, m, m.activeLaser) < 0.6 && isPointBetween(pt, m, m.activeLaser)) {
+                                char = "·"; color = "var(--beam)";
+                            }
+                        }
+                        if (m.type === 'void' && m.miniLasers) {
+                            m.miniLasers.forEach(laser => {
+                                if (getPointToLineDist(pt, laser.start, laser.end) < 0.5 && isPointBetween(pt, laser.start, laser.end)) {
+                                    char = "·"; color = "var(--void)";
+                                }
+                            });
+                        }
+                        if (m.type === 'singularity') {
+                             const d = getDistance(m, pt);
+                             if (d < 2 && Math.random() < 0.2) {
+                                 char = "•"; color = "var(--singularity)";
+                             }
+                        }
+                    });
+
+                    state.enemies.forEach(en => {
+                        if (Math.round(en.x) === x && Math.round(en.y) === y) {
+                            char = en.char; color = en.color;
+                        }
+                    });
+
+                    row.push(`<span style="color: ${color}">${char}</span>`);
+                }
+                grid.push(row.join(""));
+            }
+            document.getElementById('ascii-layer').innerHTML = grid.join("\n");
+        }
+
+        function getPointToLineDist(pt, start, end) {
+            const num = Math.abs((end.y - start.y) * pt.x - (end.x - start.x) * pt.y + end.x * start.y - end.y * start.x);
+            const den = Math.sqrt(Math.pow(end.y - start.y, 2) + Math.pow(end.x - start.x, 2));
+            return num / (den || 1);
+        }
+        function isPointBetween(pt, start, end) {
+            const dot = (pt.x - start.x) * (end.x - start.x) + (pt.y - start.y) * (end.y - start.y);
+            if (dot < 0) return false;
+            const lenSq = Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2);
+            return dot <= lenSq;
+        }
+
+        function updateUI() {
+            document.getElementById('shards').innerText = Math.floor(state.shards);
+            document.getElementById('wave').innerText = state.wave;
+            document.getElementById('health-fill').style.width = `${(state.health / state.maxHealth) * 100}%`;
+            document.getElementById('m-tier').innerText = state.tier;
+            document.getElementById('m-hp').innerText = Math.round(state.maxHealth);
+            document.getElementById('m-range').innerText = state.range.toFixed(1);
+            document.getElementById('m-atk').innerText = state.attack;
+            document.getElementById('m-sats').innerText = state.satellites.length;
+
+            document.getElementById('upgrade-range').innerText = `range (${state.costs.range})`;
+            document.getElementById('upgrade-atk').innerText = `atk (${state.costs.atk})`;
+
+            document.getElementById('upgrade-range').disabled = state.shards < state.costs.range;
+            document.getElementById('upgrade-atk').disabled = state.shards < state.costs.atk;
+            document.getElementById('mode-minion').disabled = state.shards < state.costs.minion;
+            
+            const evBtn = document.getElementById('evolve-btn');
+            evBtn.innerText = state.tier < 10 ? `evolve (${state.costs.evolve})` : "max evolution";
+            evBtn.disabled = state.shards < state.costs.evolve || state.tier >= 10;
+        }
+
+        document.getElementById('game-container').addEventListener('click', (e) => {
+            if (state.isGameOver) return;
+            const rect = document.getElementById('ascii-layer').getBoundingClientRect();
+            const x = Math.floor(((e.clientX - rect.left) / rect.width) * state.currentWidth);
+            const y = Math.floor(((e.clientY - rect.top) / rect.height) * state.currentHeight);
+            const towerPos = { x: state.currentWidth / 2, y: state.currentHeight / 2 };
+
+            if (getDistance({x,y}, towerPos) < 2.5) {
+                document.getElementById('side-menu').classList.toggle('open');
+                return;
+            }
+
+            if (state.placementMode && state.shards >= state.costs.minion) {
+                const types = [
+                    { type: 'basic', char: '+' }, { type: 'swift', char: '*' },
+                    { type: 'vaporizer', char: '^' }, { type: 'void', char: '~' },
+                    { type: 'singularity', char: 'Ω' }
+                ];
+                let pick;
+                const r = Math.random();
+                if (r < 0.1) pick = types[4];
+                else if (r < 0.25) pick = types[3];
+                else if (r < 0.5) pick = types[2];
+                else if (r < 0.75) pick = types[1];
+                else pick = types[0];
+
+                state.minions.push({ x, y, ...pick, activeLaser: null, miniLasers: [], orbitStep: 0 });
+                state.shards -= state.costs.minion;
+                state.placementMode = false;
+                document.getElementById('toast').style.opacity = 0;
+            }
+        });
+
+        document.getElementById('mode-minion').addEventListener('click', () => {
+            state.placementMode = !state.placementMode;
+            document.getElementById('toast').style.opacity = state.placementMode ? 1 : 0;
+        });
+
+        document.getElementById('upgrade-range').addEventListener('click', () => {
+            if (state.shards >= state.costs.range) {
+                state.shards -= state.costs.range;
+                state.range += 0.4;
+            }
+        });
+
+        document.getElementById('upgrade-atk').addEventListener('click', () => {
+            if (state.shards >= state.costs.atk) {
+                state.shards -= state.costs.atk;
+                state.attack += 1;
+            }
+        });
+
+        document.getElementById('evolve-btn').addEventListener('click', () => {
+            if (state.shards >= state.costs.evolve && state.tier < 10) {
+                state.shards -= state.costs.evolve;
+                state.tier++;
+                state.maxHealth *= 1.3;
+                state.health = state.maxHealth;
+                state.range += 2;
+                state.attack += 18;
+                updateSatellites();
+                updateUI();
+            }
+        });
+
+        setInterval(update, 100);
+    </script>
+</body>
+</html>
