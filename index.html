@@ -11,7 +11,7 @@
         :root {
             --black: #000000;
             --white: #ffffff;
-            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         * {
@@ -52,7 +52,7 @@
         }
 
         .problem-container {
-            margin-bottom: 3rem;
+            margin-bottom: 2.5rem;
         }
 
         .label {
@@ -92,20 +92,58 @@
             align-items: center;
             transition: var(--transition);
             width: 100%;
-            text-decoration: none;
+            position: relative;
+            overflow: hidden;
         }
 
-        .choice-btn:hover {
+        .choice-btn:hover:not(.locked) {
             background: var(--white);
             color: var(--black);
             border-color: var(--white);
         }
 
-        .val {
-            font-family: serif;
-            font-size: 1.1rem;
+        .choice-btn.is-correct {
+            background: #ffffff !important;
+            color: #000000 !important;
+            border-color: #ffffff !important;
         }
 
+        .choice-btn.is-wrong {
+            background: transparent !important;
+            color: rgba(255, 255, 255, 0.2) !important;
+            border-color: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .choice-btn.is-wrong.selected {
+            background: #ffffff !important;
+            color: #000000 !important;
+            opacity: 1 !important;
+        }
+
+        .feedback-icon {
+            position: absolute;
+            right: 1rem;
+            width: 18px;
+            height: 18px;
+        }
+
+        .feedback-icon svg {
+            width: 100%;
+            height: 100%;
+            stroke: currentColor;
+            stroke-width: 3;
+            fill: none;
+            stroke-dasharray: 50;
+            stroke-dashoffset: 50;
+            /* Animation made slower: 0.8s */
+            animation: draw 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes draw {
+            to { stroke-dashoffset: 0; }
+        }
+
+        .val { font-family: serif; font-size: 1.1rem; }
         .index {
             font-size: 0.6rem;
             opacity: 0.5;
@@ -116,6 +154,36 @@
             align-items: center;
             justify-content: center;
             border-radius: 50%;
+        }
+
+        .choice-btn.locked .index { display: none; }
+
+        /* Show Why Section */
+        #explanation-box {
+            margin-top: 2rem;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: var(--white);
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.6s ease;
+        }
+
+        #explanation-box.visible {
+            opacity: 0.7;
+            transform: translateY(0);
+        }
+
+        #trigger-word {
+            cursor: pointer;
+            font-weight: 700;
+            text-decoration: none;
+            color: var(--white);
+        }
+
+        #trigger-word:hover {
+            opacity: 1;
+            text-decoration: underline;
         }
 
         .wipe {
@@ -147,9 +215,7 @@
         }
 
         @media (max-width: 480px) {
-            .choices {
-                grid-template-columns: 1fr;
-            }
+            .choices { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -166,8 +232,10 @@
             <div id="equation"></div>
         </div>
 
-        <div class="choices" id="choices-grid">
-            <!-- dynamic choices -->
+        <div class="choices" id="choices-grid"></div>
+
+        <div id="explanation-box">
+            <p id="explanation-text"></p>
         </div>
     </div>
 
@@ -177,7 +245,8 @@
 
     <script>
         const gameFiles = ['hw1.html', 'hw2.html', 'hw3.html', 'hw4.html'];
-        
+        let targetUrl = "";
+
         function generateMath() {
             const a = Math.floor(Math.random() * 5) + 1;
             const b = Math.floor(Math.random() * 10) + 1;
@@ -187,35 +256,73 @@
             const displayEq = `<span>f(x) = ${a}x + ${b} - ${c}</span>`;
             document.getElementById('equation').innerHTML = displayEq;
             
-            // generate 4 answers
             let answers = [
-                { val: `x = ${correctX}`, file: gameFiles[0] },
-                { val: `x = ${correctX + 2}`, file: gameFiles[1] },
-                { val: `x = ${correctX - 1}`, file: gameFiles[2] },
-                { val: `x = ${correctX + 5}`, file: gameFiles[3] }
+                { val: `x = ${correctX}`, correct: true, file: gameFiles[0] },
+                { val: `x = ${correctX + 2}`, correct: false, file: gameFiles[1] },
+                { val: `x = ${correctX - 1}`, correct: false, file: gameFiles[2] },
+                { val: `x = ${correctX + 5}`, correct: false, file: gameFiles[3] }
             ];
             
-            // shuffle
             answers.sort(() => Math.random() - 0.5);
             
             const grid = document.getElementById('choices-grid');
+            grid.innerHTML = '';
             answers.forEach((ans, i) => {
-                const aTag = document.createElement('a');
-                aTag.href = ans.file;
-                aTag.className = 'choice-btn';
-                aTag.innerHTML = `<span class="val">${ans.val}</span><span class="index">${String.fromCharCode(97 + i)}</span>`;
-                aTag.onclick = (e) => solve(e, ans.file);
-                grid.appendChild(aTag);
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn';
+                btn.dataset.correct = ans.correct;
+                btn.dataset.file = ans.file;
+                btn.innerHTML = `<span class="val">${ans.val}</span><span class="index">${String.fromCharCode(97 + i)}</span>`;
+                btn.onclick = () => handleSolve(btn, a, b, c, correctX);
+                grid.appendChild(btn);
             });
         }
 
-        function solve(e, url) {
-            e.preventDefault();
-            const wipe = document.getElementById('wipe');
-            wipe.style.transform = 'scaleY(1)';
+        function handleSolve(selectedBtn, a, b, c, correctX) {
+            const allBtns = document.querySelectorAll('.choice-btn');
+            const isCorrect = selectedBtn.dataset.correct === 'true';
+            targetUrl = selectedBtn.dataset.file;
+
+            allBtns.forEach(btn => {
+                btn.classList.add('locked');
+                const btnIsCorrect = btn.dataset.correct === 'true';
+                
+                if (btnIsCorrect) {
+                    btn.classList.add('is-correct');
+                    btn.innerHTML += `<div class="feedback-icon"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>`;
+                } else {
+                    btn.classList.add('is-wrong');
+                    if (btn === selectedBtn) {
+                        btn.classList.add('selected');
+                        btn.innerHTML += `<div class="feedback-icon"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></div>`;
+                    }
+                }
+            });
+
+            // "Show Why" logic
+            const statusText = isCorrect ? "correct analysis." : "incorrect analysis.";
+            const explanation = `the general solution requires isolating the variable. first, we simplify constants: ${a}x + (${b} - ${c}) = 0, which yields ${a}x = ${c - b}. dividing both sides by ${a} confirms the `;
+            
+            const box = document.getElementById('explanation-box');
+            const textElem = document.getElementById('explanation-text');
+            
+            textElem.innerHTML = `<strong>${statusText}</strong> ${explanation}<span id="trigger-word">root.</span>.`;
+            
+            // Add click event to the last word
+            document.getElementById('trigger-word').onclick = startRedirect;
+
+            box.classList.add('visible');
+        }
+
+        function startRedirect() {
+            // Wait 0.5s after click as requested
             setTimeout(() => {
-                window.location.href = url;
-            }, 550);
+                const wipe = document.getElementById('wipe');
+                wipe.style.transform = 'scaleY(1)';
+                setTimeout(() => {
+                    window.location.href = targetUrl;
+                }, 550);
+            }, 500);
         }
 
         window.onload = generateMath;
