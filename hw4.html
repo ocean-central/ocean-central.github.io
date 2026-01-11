@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>abyss</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:opsz,wght@17..18,400;17..18,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #000000;
+            --white: #ffffff;
+            --grey: #333333;
+            --dark-grey: #111111;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--white);
+            font-family: "Google Sans", sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #ui {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        #score-label {
+            font-size: 14px;
+            color: var(--grey);
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        #score {
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        #powerup-ui {
+            margin-top: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--white);
+            letter-spacing: 1px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10;
+            transition: opacity 0.8s ease;
+        }
+
+        h1 {
+            font-size: 48px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            margin: 0 0 10px 0;
+        }
+
+        p {
+            color: var(--grey);
+            margin: 0 0 40px 0;
+            font-size: 16px;
+        }
+
+        button {
+            background: var(--white);
+            color: var(--bg);
+            border: none;
+            padding: 16px 48px;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 100px;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="ui" class="hidden">
+    <div id="score-label">depth</div>
+    <div id="score">0</div>
+    <div id="powerup-ui">void eater: <span id="powerup-timer">10</span>s</div>
+</div>
+
+<div id="overlay">
+    <h1 id="title">abyss</h1>
+    <p id="msg">collect light. avoid the void.</p>
+    <button id="start-btn">enter</button>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const ui = document.getElementById('ui');
+    const scoreEl = document.getElementById('score');
+    const powerupUi = document.getElementById('powerup-ui');
+    const powerupTimerEl = document.getElementById('powerup-timer');
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('start-btn');
+    const title = document.getElementById('title');
+    const msg = document.getElementById('msg');
+
+    let state = {
+        active: false,
+        score: 0,
+        shake: 0,
+        width: 0,
+        height: 0,
+        lastTime: 0,
+        powerupTime: 0
+    };
+
+    const player = {
+        x: 0,
+        y: 0,
+        r: 12,
+        maxR: 35,
+        speed: 4,
+        vx: 0,
+        vy: 0,
+        baseDecay: 0.015, // much slower base decay
+        keys: {}
+    };
+
+    let particles = [];
+    let entities = []; 
+    let backgroundStars = [];
+
+    function initStars() {
+        backgroundStars = [];
+        for (let i = 0; i < 100; i++) {
+            backgroundStars.push({
+                x: Math.random() * state.width,
+                y: Math.random() * state.height,
+                z: Math.random() * 0.5 + 0.1, 
+                size: Math.max(0.1, Math.random() * 2)
+            });
+        }
+    }
+
+    function resize() {
+        state.width = canvas.width = window.innerWidth;
+        state.height = canvas.height = window.innerHeight;
+        initStars();
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    window.addEventListener('keydown', e => player.keys[e.code] = true);
+    window.addEventListener('keyup', e => player.keys[e.code] = false);
+
+    let touch = { active: false, x: 0, y: 0 };
+    window.addEventListener('touchstart', e => {
+        touch.active = true;
+        touch.x = e.touches[0].clientX;
+        touch.y = e.touches[0].clientY;
+    });
+    window.addEventListener('touchmove', e => {
+        touch.x = e.touches[0].clientX;
+        touch.y = e.touches[0].clientY;
+    });
+    window.addEventListener('touchend', () => touch.active = false);
+
+    function spawn(type) {
+        const side = Math.floor(Math.random() * 4);
+        let x, y;
+        if (side === 0) { x = Math.random() * state.width; y = -40; }
+        else if (side === 1) { x = state.width + 40; y = Math.random() * state.height; }
+        else if (side === 2) { x = Math.random() * state.width; y = state.height + 40; }
+        else { x = -40; y = Math.random() * state.height; }
+
+        const angle = Math.atan2(player.y - y, player.x - x) + (Math.random() - 0.5) * 0.5;
+        let speed = type === 'photon' ? 1.2 : 2.0;
+        if (type === 'eater') speed = 1.0;
+
+        entities.push({
+            type,
+            x, y,
+            r: type === 'photon' ? 5 : (type === 'eater' ? 12 : Math.max(2, 8 + Math.random() * 10)),
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            pulse: 0
+        });
+    }
+
+    function createParticles(x, y, color, count, rMultiplier = 1) {
+        for (let i = 0; i < count; i++) {
+            particles.push({
+                x, y,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                r: Math.max(0.1, Math.random() * 3 * rMultiplier),
+                life: 1.0,
+                color: color
+            });
+        }
+    }
+
+    function reset() {
+        state.score = 0;
+        state.powerupTime = 0;
+        player.x = state.width / 2;
+        player.y = state.height / 2;
+        player.r = 15;
+        player.vx = 0;
+        player.vy = 0;
+        entities = [];
+        particles = [];
+        scoreEl.innerText = '0';
+        powerupUi.style.opacity = '0';
+    }
+
+    function gameOver() {
+        state.active = false;
+        overlay.classList.remove('hidden');
+        ui.classList.add('hidden');
+        title.innerText = 'consumed';
+        msg.innerText = `you reached a depth of ${state.score}`;
+        startBtn.innerText = 'retry';
+        createParticles(player.x, player.y, '#fff', 40, 2);
+    }
+
+    function update(time) {
+        if (!state.active) return;
+        const dt = (time - state.lastTime) / 16;
+        state.lastTime = time;
+
+        // movement
+        let ax = 0, ay = 0;
+        if (player.keys['ArrowUp'] || player.keys['KeyW']) ay -= 1;
+        if (player.keys['ArrowDown'] || player.keys['KeyS']) ay += 1;
+        if (player.keys['ArrowLeft'] || player.keys['KeyA']) ax -= 1;
+        if (player.keys['ArrowRight'] || player.keys['KeyD']) ax += 1;
+
+        if (touch.active) {
+            const dx = touch.x - player.x;
+            const dy = touch.y - player.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > 10) { ax = dx / dist; ay = dy / dist; }
+        }
+
+        player.vx += ax * 0.7;
+        player.vy += ay * 0.7;
+        player.vx *= 0.93; 
+        player.vy *= 0.93;
+        player.x += player.vx;
+        player.y += player.vy;
+
+        player.x = Math.max(0, Math.min(state.width, player.x));
+        player.y = Math.max(0, Math.min(state.height, player.y));
+
+        // powerup logic
+        if (state.powerupTime > 0) {
+            state.powerupTime -= (16 * dt) / 1000;
+            powerupUi.style.opacity = '1';
+            powerupTimerEl.innerText = Math.max(0, Math.ceil(state.powerupTime));
+            if (state.powerupTime <= 0) powerupUi.style.opacity = '0';
+        }
+
+        // dynamic decay: gets faster as score increases
+        const currentDecay = player.baseDecay + (state.score * 0.00001);
+        player.r -= currentDecay * dt;
+        
+        if (player.r <= 2.5) {
+            player.r = 0.1;
+            gameOver();
+        }
+
+        // spawning logic
+        if (Math.random() < 0.04) spawn('void');
+        if (Math.random() < 0.03) spawn('photon');
+        if (Math.random() < 0.002) spawn('eater'); // rare powerup
+
+        for (let i = entities.length - 1; i >= 0; i--) {
+            const e = entities[i];
+            e.x += e.vx;
+            e.y += e.vy;
+            e.pulse += 0.1 * dt;
+
+            const dx = player.x - e.x;
+            const dy = player.y - e.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+
+            if (dist < player.r + e.r) {
+                if (e.type === 'photon') {
+                    player.r = Math.min(player.maxR, player.r + 4);
+                    state.score += 5;
+                    scoreEl.innerText = state.score;
+                    state.shake = 8; 
+                    createParticles(e.x, e.y, '#fff', 8);
+                } else if (e.type === 'eater') {
+                    state.powerupTime = 10;
+                    state.shake = 15;
+                    createParticles(e.x, e.y, '#fff', 20, 1.5);
+                } else {
+                    // void tendril logic
+                    if (state.powerupTime > 0) {
+                        state.score += 15;
+                        scoreEl.innerText = state.score;
+                        state.shake = 5;
+                        createParticles(e.x, e.y, '#666', 10);
+                    } else {
+                        player.r -= 7;
+                        state.shake = 20;
+                        createParticles(e.x, e.y, '#333', 15);
+                        if (player.r <= 2.5) {
+                            player.r = 0.1;
+                            gameOver();
+                        }
+                    }
+                }
+                entities.splice(i, 1);
+                continue;
+            }
+
+            if (e.x < -150 || e.x > state.width + 150 || e.y < -150 || e.y > state.height + 150) {
+                entities.splice(i, 1);
+            }
+        }
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.02 * dt;
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        draw();
+        requestAnimationFrame(update);
+    }
+
+    function draw() {
+        ctx.save();
+        
+        if (state.shake > 0) {
+            ctx.translate((Math.random() - 0.5) * state.shake, (Math.random() - 0.5) * state.shake);
+            state.shake *= 0.9;
+            if (state.shake < 0.1) state.shake = 0;
+        }
+
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, state.width, state.height);
+
+        backgroundStars.forEach(s => {
+            const ox = (player.x - state.width/2) * s.z * -0.1;
+            const oy = (player.y - state.height/2) * s.z * -0.1;
+            ctx.fillStyle = `rgba(255, 255, 255, ${s.z * 0.8})`;
+            ctx.beginPath();
+            ctx.arc(s.x + ox, s.y + oy, Math.max(0, s.size), 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        entities.forEach(e => {
+            ctx.beginPath();
+            if (e.type === 'photon') {
+                ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#fff';
+                ctx.fill();
+            } else if (e.type === 'eater') {
+                // powerup visual: hollow pulsing ring
+                const pulseR = e.r + Math.sin(e.pulse) * 4;
+                ctx.arc(e.x, e.y, Math.max(0.1, pulseR), 0, Math.PI * 2);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#fff';
+            } else {
+                ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+                ctx.fillStyle = '#222';
+                ctx.strokeStyle = '#444';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                ctx.fill();
+            }
+        });
+
+        particles.forEach(p => {
+            ctx.globalAlpha = Math.max(0, p.life);
+            ctx.fillStyle = p.color || '#fff';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, Math.max(0, p.r), 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+
+        if (player.r > 0) {
+            // void eater aura
+            if (state.powerupTime > 0) {
+                ctx.shadowBlur = 30 + Math.sin(Date.now() * 0.01) * 10;
+                ctx.shadowColor = '#fff';
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, player.r + 8, 0, Math.PI * 2);
+                ctx.stroke();
+            } else {
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#fff';
+            }
+            
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        ctx.restore();
+    }
+
+    startBtn.onclick = () => {
+        overlay.classList.add('hidden');
+        ui.classList.remove('hidden');
+        reset();
+        state.active = true;
+        state.lastTime = performance.now();
+        requestAnimationFrame(update);
+    };
+
+    function idle() {
+        if (!state.active) {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, state.width, state.height);
+            backgroundStars.forEach(s => {
+                ctx.fillStyle = `rgba(255, 255, 255, ${s.z * 0.4})`;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, Math.max(0, s.size), 0, Math.PI * 2);
+                ctx.fill();
+            });
+            requestAnimationFrame(idle);
+        }
+    }
+    idle();
+</script>
+</body>
+</html>
