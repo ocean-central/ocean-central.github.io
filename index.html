@@ -2,859 +2,223 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>the lost tower</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>computational_analysis</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Product+Sans:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-black: #000000;
-            --deep-crimson: #4a0007;
-            --light-crimson: #ff4d61;
-            --text-main: #ffb3bc;
-            --font-main: 'Google Sans', sans-serif;
-            --tooltip-bg: rgba(20, 0, 0, 0.95);
+            --black: #000000;
+            --white: #ffffff;
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; text-transform: lowercase; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Product Sans', 'Google Sans', sans-serif;
+            text-transform: lowercase;
+            -webkit-tap-highlight-color: transparent;
+        }
 
         body {
-            margin: 0; padding: 0;
-            background-color: var(--bg-black);
-            color: var(--text-main);
-            font-family: var(--font-main);
-            height: 100dvh; width: 100vw;
+            background-color: var(--black);
+            color: var(--white);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
-            display: flex; flex-direction: column;
-            overscroll-behavior: none;
         }
 
-        #game-layout {
-            flex: 1; display: flex; flex-direction: column;
-            max-width: 500px; margin: 0 auto; width: 100%; height: 100%;
+        .workspace {
+            max-width: 450px;
+            width: 85%;
+            animation: fadeIn 0.8s ease-out;
         }
 
-        header { padding: 15px 20px; border-bottom: 1px solid var(--deep-crimson); background: var(--bg-black); position: relative; }
-
-        h1 { margin: 0 0 10px 0; font-size: 0.9rem; letter-spacing: 2px; color: var(--light-crimson); text-align: center; font-weight: 700; }
-
-        #status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 0.75rem; }
-        .stat-item { display: flex; flex-direction: column; align-items: center; }
-        .stat-label { color: var(--deep-crimson); margin-bottom: 2px; font-weight: 700; }
-        .stat-val { color: var(--text-main); font-weight: 500; }
-
-        #buff-indicator {
-            display: flex; justify-content: center; flex-wrap: wrap; gap: 8px;
-            margin-top: 12px; font-size: 0.65rem; font-weight: 700; min-height: 18px;
+        .meta-header {
+            font-size: 0.6rem;
+            letter-spacing: 0.25em;
+            opacity: 0.3;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0.5rem;
         }
 
-        .status-tag { 
-            position: relative; 
-            cursor: pointer; 
-            padding: 2px 4px;
-            border-radius: 2px;
+        .problem-container {
+            margin-bottom: 3rem;
         }
-        
-        .status-tag .tooltip {
-            visibility: hidden;
-            width: 140px;
-            background-color: var(--tooltip-bg);
-            color: #fff;
-            text-align: center;
-            border: 1px solid var(--deep-crimson);
-            padding: 8px;
-            border-radius: 4px;
-            position: absolute;
-            z-index: 10;
-            bottom: 150%;
-            left: 50%;
-            margin-left: -70px;
-            opacity: 0;
-            transition: opacity 0.2s;
+
+        .label {
+            font-size: 0.75rem;
+            opacity: 0.5;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        #equation {
+            font-size: 1.6rem;
+            letter-spacing: -0.02em;
             font-weight: 400;
-            font-style: normal;
-            pointer-events: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            font-size: 0.7rem;
-            line-height: 1.3;
         }
 
-        .status-tag:hover .tooltip, .status-tag:active .tooltip {
-            visibility: visible;
-            opacity: 1;
+        #equation span {
+            font-family: serif;
+            font-style: italic;
+            text-transform: none;
         }
 
-        .buff-haunt { color: #9d81ff; font-style: italic; }
-        .buff-well-rested { color: #ffd700; text-shadow: 0 0 5px #ffd700; }
-        .buff-zen { color: #00f2ff; text-shadow: 0 0 8px #00f2ff; }
-        .blade-status { color: #ff0000; text-shadow: 0 0 5px #ff0000; }
-        .glove-status { color: #00ffcc; text-shadow: 0 0 5px #00ffcc; }
-        .daniel-status { color: #fff; text-shadow: 0 0 8px #00f2ff; font-style: italic; }
-
-        #log-container {
-            flex: 1; overflow-y: auto; padding: 20px;
-            display: flex; flex-direction: column; gap: 14px;
-            -webkit-overflow-scrolling: touch;
-            mask-image: linear-gradient(to bottom, transparent, black 10%);
+        .choices {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
         }
 
-        .log-entry { font-size: 0.85rem; line-height: 1.6; animation: fadeIn 0.3s ease-out; }
-        .log-entry.story { color: var(--light-crimson); border-left: 2px solid var(--deep-crimson); padding-left: 10px; }
-        .log-entry.alan { color: #ffffff; border-left: 2px solid #ffffff; padding-left: 10px; font-style: italic; }
-        .log-entry.neal { color: #ff0000; font-style: italic; border: 1px solid #4a0007; padding: 8px; border-radius: 4px; background: rgba(74, 0, 7, 0.2); }
-        .log-entry.daniel-msg { color: #00f2ff; font-style: italic; border: 1px solid #004d4d; padding: 8px; border-radius: 4px; background: rgba(0, 242, 255, 0.05); }
-        .log-entry.danger { color: #ff0000; font-weight: 700; }
-        .log-entry.buff-msg { color: #00ffcc; font-style: italic; }
-        .log-entry.haunt-msg { color: #9d81ff; }
-        .log-entry.success { color: #00ffcc; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-        #controls-area {
-            padding: 20px; background: var(--bg-black);
-            border-top: 1px solid var(--deep-crimson);
-            display: flex; flex-direction: column; gap: 8px;
-            padding-bottom: max(20px, env(safe-area-inset-bottom));
+        .choice-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--white);
+            padding: 1.2rem;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+            width: 100%;
+            text-decoration: none;
         }
 
-        .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .button-row.single { grid-template-columns: 1fr; }
-
-        button {
-            background: var(--bg-black); border: 1px solid var(--deep-crimson);
-            color: var(--light-crimson); padding: 12px 0;
-            font-family: var(--font-main); font-size: 0.8rem; font-weight: 500;
-            border-radius: 4px; cursor: pointer;
-            transition: background 0.2s;
+        .choice-btn:hover {
+            background: var(--white);
+            color: var(--black);
+            border-color: var(--white);
         }
 
-        button:active { background: var(--deep-crimson); color: white; }
-        button.combat-btn { border-color: #ff0000; color: #ff0000; font-weight: 700; }
-        button.elec-btn { border-color: #00f2ff; color: #00f2ff; }
-        button.alan-btn { border-color: #ffffff; color: #ffffff; }
-
-        #modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.98); z-index: 100;
-            display: none; flex-direction: column; justify-content: center; align-items: center;
+        .val {
+            font-family: serif;
+            font-size: 1.1rem;
         }
 
-        #modal-overlay.open { display: flex; }
-        .modal-content { width: 85%; max-width: 400px; display: flex; flex-direction: column; gap: 20px; }
-        #inventory-list { display: flex; flex-direction: column; gap: 10px; max-height: 50vh; overflow-y: auto; }
-        .inv-item { border-bottom: 1px solid var(--deep-crimson); padding: 12px 0; display: flex; justify-content: space-between; align-items: center; }
-        .inv-use { color: var(--light-crimson); font-weight: 700; font-size: 0.75rem; }
-        .btn-exit { border-color: var(--light-crimson); margin-top: 10px; }
+        .index {
+            font-size: 0.6rem;
+            opacity: 0.5;
+            border: 1px solid currentColor;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
 
-        .victory-screen { text-align: center; color: var(--light-crimson); padding: 40px; }
-        .victory-screen h2 { text-transform: lowercase; font-weight: 700; margin-bottom: 20px; }
-        .hidden { display: none !important; }
+        .wipe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--white);
+            z-index: 1000;
+            transform: scaleY(0);
+            transform-origin: bottom;
+            transition: transform 0.5s cubic-bezier(0.85, 0, 0.15, 1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        footer {
+            position: fixed;
+            bottom: 2rem;
+            font-size: 0.6rem;
+            opacity: 0.15;
+            letter-spacing: 0.1em;
+            text-align: center;
+            width: 100%;
+        }
+
+        @media (max-width: 480px) {
+            .choices {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
 
-<div id="game-layout">
-    <header>
-        <h1>the lost tower</h1>
-        <div id="status-grid">
-            <div class="stat-item"><span class="stat-label">alt</span><span id="stat-alt" class="stat-val">0m</span></div>
-            <div class="stat-item"><span class="stat-label">hp</span><span id="stat-hp" class="stat-val">100%</span></div>
-            <div class="stat-item"><span class="stat-label">nrg</span><span id="stat-nrg" class="stat-val">100%</span></div>
+    <div class="workspace">
+        <div class="meta-header">
+            <span>math academy</span>
+            <span>status: active</span>
         </div>
-        <div id="buff-indicator"></div>
-    </header>
 
-    <div id="log-container"></div>
+        <div class="problem-container">
+            <span class="label">evaluate for <span>x</span> where <span>f(x) = 0</span>:</span>
+            <div id="equation"></div>
+        </div>
 
-    <div id="controls-area">
-        <div id="alan-dialogue" class="button-row single hidden"></div>
-        <div id="context-actions" class="button-row single hidden"></div>
-        <div id="standard-controls">
-            <div class="button-row">
-                <button id="btn-climb" onclick="game.climb()">climb</button>
-                <button onclick="game.inspect()">scout</button>
-            </div>
-            <div class="button-row">
-                <button onclick="game.rest()">rest</button>
-                <button onclick="game.ui.toggleInventory()">backpack</button>
-            </div>
+        <div class="choices" id="choices-grid">
+            <!-- dynamic choices -->
         </div>
     </div>
-</div>
 
-<div id="modal-overlay">
-    <div class="modal-content">
-        <div style="text-align: center; font-weight: 700; color: var(--light-crimson);">storage</div>
-        <div id="inventory-list"></div>
-        <button class="btn-exit" onclick="game.ui.toggleInventory()">exit</button>
-    </div>
-</div>
+    <footer>use only when permitted &copy;</footer>
 
-<script>
-const ITEMS = {
-    water: { name: 'water', effect: { nrg: 15 } },
-    meds: { name: 'meds', effect: { hp: 40 } },
-    wrench: { name: 'heavy wrench', type: 'tool' },
-    drink: { name: 'nrg drink', effect: { nrg: 80, hp: -8 } },
-    ramen: { name: 'instant ramen', effect: { saturated: 15, energized: true, regenHp: 20 }, requireRest: true },
-    blade: { name: 'crimson blade', type: 'weapon' },
-    gloves: { name: 'climbing gloves', type: 'gear' }
-};
+    <div class="wipe" id="wipe"></div>
 
-class Game {
-    constructor() {
-        this.p = { 
-            hp: 100, nrg: 100, 
-            hasBlade: false,
-            hasGloves: false,
-            inv: [...Array(3).fill('water'), 'wrench'] 
-        };
-        this.h = 0;
-        this.maxH = 50000;
-        this.nextSafe = 1200;
-        this.actions = 0;
-        this.cycleActions = 0;
-        this.nealDist = 1000;
-        this.danielDist = 2000;
-        this.hasNeal = false;
-        this.hasDaniel = false;
-        this.hasSeenFirstDaniel = false;
-        this.hasSeenFirstNealEvolved = false;
-        this.nealEvolved = false;
-        this.isNight = false;
-        this.isSafe = false;
-        this.isRestArea = false;
-        this.saturatedTurns = 0;
-        this.wellRestedTurns = 0;
-        this.hauntedTurns = 0;
-        this.hauntCooldown = 0;
-        this.hasSeenEricPoster = false;
-        this.energized = false;
-        this.activeEvent = null;
-        this.alanMet = false;
-        this.alanStep = 0;
-        this.zenActive = false;
-        this.descending = false;
-        this.phase = 0; // 0: Climb Up, 1: Climb Down to 0, 2: Climb Up to 45k (Warzone)
-        this.metAlanFirstTime = false;
-        this.ui = new UI();
-    }
-
-    start() {
-        this.ui.log(`"the forest floor is a distant memory. the climb begins."`, 'story');
-        this.ui.update();
-    }
-
-    getClimbPhrase() {
-        if (this.hauntedTurns > 0) return `"a spectre is following me. it's just a distraction. focus."`;
-        if (this.p.hp < 30) return `"my vision is blurring. the blood on the rungs makes them slippery."`;
-        if (this.wellRestedTurns > 0) return `"i feel untouchable. the climb is almost effortless."`;
+    <script>
+        const gameFiles = ['game1.html', 'game2.html', 'game3.html', 'game4.html'];
         
-        let phrases = ["one rung at a time.", "don't look down.", "slick metal, cold grip.", "the tower groans.", "step. reach. pull.", "ghost on a wire.", "the rungs are getting thinner.", "keep the rhythm.", "forget the fear."];
-        
-        if (this.h > 20000) {
-            phrases.push(...[
-                "the wind is howling, trying to peel me off the rungs.",
-                "the air is thin. every breath feels like a chore.",
-                "my lungs ache. oxygen is a luxury now.",
-                "the tower sways in the gale. i have to grip tighter.",
-                "it's getting harder to breathe as the sky turns blacker."
-            ]);
-        }
-        
-        return `"${phrases[Math.floor(Math.random() * phrases.length)]}"`;
-    }
-
-    getDanielLog() {
-        const danielLogs = [
-            `"a daniel is flickering ahead. the static is making my skin crawl."`,
-            `"blue sparks are dancing along the rails. a daniel is definitely near."`,
-            `"i can smell ozone. a daniel is pulsing somewhere in the framework."`,
-            `"my hair is standing on end. a daniel is feeding off the tower's height."`,
-            `"that blue hum... a daniel is warning me to stay back."`
-        ];
-        return danielLogs[Math.floor(Math.random() * danielLogs.length)];
-    }
-
-    tick(isSafeAction = false) {
-        if (this.isSafe || isSafeAction) {
-            this.ui.update();
-            return;
-        }
-
-        this.actions++;
-        this.cycleActions++;
-
-        if (this.saturatedTurns > 0) {
-            this.p.hp = Math.min(100, this.p.hp + 20);
-            this.saturatedTurns--;
-            if (this.saturatedTurns === 0) this.energized = false;
-        }
-        
-        if (this.wellRestedTurns > 0) {
-            this.p.hp = Math.min(100, this.p.hp + 35);
-            this.wellRestedTurns--;
-            if (this.wellRestedTurns === 0) this.ui.log(`"the comfort of the cabin has finally worn off."`);
-        }
-
-        const cycleLimit = this.isNight ? 25 : 30;
-        if (this.cycleActions >= cycleLimit) {
-            this.isNight = !this.isNight;
-            this.cycleActions = 0;
-            this.ui.log(this.isNight ? `"the sun vanishes. night has come."` : `"dawn breaks."`, 'story');
-            if (!this.isNight && this.phase !== 2) { // In Phase 2, Neal doesn't leave at dawn
-                this.hasNeal = false;
-            }
-            if (!this.isNight) this.isRestArea = false;
-        }
-
-        // Eric Logic
-        let hauntChance = 0.10 + (this.hasSeenEricPoster ? 0.15 : 0);
-        if (this.phase === 2) hauntChance *= 1.5; // Warzone multiplier
-
-        if (this.hauntedTurns > 0) {
-            this.hauntedTurns--;
-            if (this.hauntedTurns === 0) {
-                this.ui.log(`"the spectre has vanished."`);
-                this.hauntCooldown = 20;
-            }
-        } else if (this.hauntCooldown > 0) {
-            this.hauntCooldown--;
-        } else if (Math.random() < hauntChance && !this.alanMet) {
-            this.hauntedTurns = 5;
-            this.ui.log(`"a spectre is drifting beside the tower. it's distracting."`, 'haunt-msg');
-        }
-
-        // Difficulty scaling for spawns
-        const altitudeScale = Math.min(1.0, this.h / 45000); 
-        let spawnMult = (this.phase === 2) ? 1.5 : 1.0;
-
-        const baseDanielChance = (0.05 + (0.40 * altitudeScale)) * spawnMult;
-        const baseNealChance = (0.02 + (0.13 * altitudeScale)) * spawnMult;
-
-        // Daniel Spawn
-        if (this.h > 15000 && !this.hasDaniel && this.hasSeenFirstDaniel && !this.alanMet) {
-            if (Math.random() < baseDanielChance) {
-                this.hasDaniel = true;
-                this.danielDist = 1500;
-                this.ui.log(this.getDanielLog(), 'daniel-msg');
-            }
-        }
-
-        // Neal Spawn Logic
-        // In Phase 2 (Warzone), Neal can spawn at any time (Day or Night)
-        const nealCondition = (this.isNight || this.phase === 2) && !this.hasNeal && !this.alanMet;
-        if (nealCondition && Math.random() < baseNealChance) {
-            this.hasNeal = true;
-            this.nealDist = 1200;
-            const evolvedMsg = this.phase === 2 ? `"the tower is a warzone. the evolved neal has returned to finish me."` : `"a jagged shadow moves below. the evolved neal is hunting."`;
-            this.ui.log(this.nealEvolved ? evolvedMsg : `"the clicking sound... the neal is back."`, 'neal');
+        function generateMath() {
+            const a = Math.floor(Math.random() * 5) + 1;
+            const b = Math.floor(Math.random() * 10) + 1;
+            const correctX = Math.floor(Math.random() * 8) + 2; 
+            const c = (a * correctX) + b; 
             
-            if (!this.hasDaniel && this.h > 15000 && this.hasSeenFirstDaniel && Math.random() < 0.30) {
-                this.hasDaniel = true;
-                this.danielDist = 1500;
-                this.ui.log(`"a daniel has joined the neal's pursuit. electricity crackles."`, 'daniel-msg');
-            }
-        }
-
-        // Neal Movement
-        if (this.hasNeal) {
-            this.nealDist -= this.nealEvolved ? 900 : 600;
-            if (this.nealDist <= 100) this.ui.log(`"the neal is right behind me!"`, 'danger');
-            if (this.nealDist <= 0) this.triggerNealEncounter();
-        }
-
-        // Daniel Movement
-        if (this.hasDaniel) {
-            this.danielDist -= (500 + Math.floor(Math.random() * 501));
-            if (this.danielDist <= 0) {
-                this.triggerDanielEncounter();
-                this.danielDist = 1200;
-            }
-        }
-
-        if (this.p.hp <= 0) this.end("the tower claimed me.");
-        this.ui.update();
-    }
-
-    climb() {
-        if (this.activeEvent || this.alanMet) return;
-        this.isSafe = false;
-        this.isRestArea = false;
-
-        let baseCost = 8 + Math.floor(this.h / 1500);
-        if (this.isNight) baseCost += 6;
-        if (this.hasNeal) baseCost += 4;
-        if (this.hasDaniel) baseCost += 3;
-        if (this.p.hasGloves) baseCost -= 2;
-        if (this.hauntedTurns > 0) baseCost += (this.phase === 2 ? 15 : 5); // Eric slows you more
-
-        if (this.zenActive) baseCost *= 0.2; // 80% energy drain reduction
-        if (this.wellRestedTurns > 0) baseCost = 0;
-
-        const cost = Math.max(0, Math.floor(baseCost));
-
-        if (this.p.nrg < cost) {
-            this.ui.log(`"no energy left. i have to rest."`, 'danger');
-            return;
-        }
-
-        this.p.nrg -= cost;
-        
-        let gain = 20 + Math.floor(Math.random() * 25);
-        const proficiencyMult = 1 + (Math.floor(this.h / 1000) * 0.02);
-        gain *= proficiencyMult;
-
-        if (this.p.hasGloves) gain *= 1.75; 
-        if (this.saturatedTurns > 0 && this.energized) gain *= 1.35;
-        if (this.zenActive) gain *= 2.2; // +120% distance
-        if (this.hauntedTurns > 0) gain *= (this.phase === 2 ? 0.4 : 0.8); // Eric slows progress
-
-        gain = Math.floor(gain);
-        
-        if (this.phase === 1) { // Descending
-            this.h -= gain;
-            this.ui.log(`"descending... (-${gain}m)"`);
-            if (this.h <= 0) {
-                this.h = 0;
-                this.phase = 2; // WARZONE START
-                this.descending = false;
-                this.ui.log(`"the forest floor. i am back at the beginning. the tower feels different... hostile."`, 'story');
-                this.ui.log(`"the climb back to alan will be a warzone. everything is faster, stronger."`, 'danger');
-                this.ui.updateClimbButton("final ascent");
-            }
-        } else { // Climbing Up
-            this.h += gain;
-            this.ui.log(`${this.getClimbPhrase()} (+${gain}m)`);
+            const displayEq = `<span>f(x) = ${a}x + ${b} - ${c}</span>`;
+            document.getElementById('equation').innerHTML = displayEq;
             
-            // Hardcoded Events
-            if (this.h >= 10000 && !this.hasSeenFirstNealEvolved && this.phase === 0) {
-                this.hasSeenFirstNealEvolved = true;
-                this.nealEvolved = true;
-                this.hasNeal = true;
-                this.nealDist = 1200;
-                this.ui.log(`"the neal has changed. it's taller, darker, and moves with impossible speed. it has evolved."`, 'neal');
-            }
-
-            if (this.h >= 15000 && !this.hasSeenFirstDaniel && this.phase === 0) {
-                this.hasSeenFirstDaniel = true;
-                this.triggerFirstDanielEncounter();
-                return;
-            }
-
-            // Alan First Meeting
-            if (this.h >= 45000 && !this.alanMet && !this.metAlanFirstTime && this.phase === 0) {
-                this.triggerAlanEncounter();
-                return;
-            }
-
-            // Alan Second Meeting (Ending)
-            if (this.h >= 45000 && this.phase === 2 && !this.alanMet) {
-                this.triggerAlanEncounter();
-                return;
-            }
-
-            if (this.h >= this.nextSafe) {
-                this.ui.log(`"found a maintenance cabin. climate control hums inside."`, 'story');
-                this.ui.log(`"scavenged: 5 ramens, 5 waters, 10 nrg drinks."`, 'success');
-                for(let i=0; i<5; i++) { this.p.inv.push('ramen'); this.p.inv.push('water'); }
-                for(let i=0; i<10; i++) this.p.inv.push('drink');
-                this.isSafe = true;
-                this.hasNeal = false; this.hasDaniel = false;
-                this.nextSafe += (1500 + Math.random() * 1500);
-            } else {
-                if (Math.random() < 0.20) {
-                    this.ui.log(`"a service ledge. enough space to sit."`);
-                    this.isRestArea = true;
-                }
-            }
+            // generate 4 answers
+            let answers = [
+                { val: `x = ${correctX}`, file: gameFiles[0] },
+                { val: `x = ${correctX + 2}`, file: gameFiles[1] },
+                { val: `x = ${correctX - 1}`, file: gameFiles[2] },
+                { val: `x = ${correctX + 5}`, file: gameFiles[3] }
+            ];
+            
+            // shuffle
+            answers.sort(() => Math.random() - 0.5);
+            
+            const grid = document.getElementById('choices-grid');
+            answers.forEach((ans, i) => {
+                const aTag = document.createElement('a');
+                aTag.href = ans.file;
+                aTag.className = 'choice-btn';
+                aTag.innerHTML = `<span class="val">${ans.val}</span><span class="index">${String.fromCharCode(97 + i)}</span>`;
+                aTag.onclick = (e) => solve(e, ans.file);
+                grid.appendChild(aTag);
+            });
         }
 
-        if (this.h >= this.maxH && this.phase === 0) this.summitReached();
-        this.tick();
-    }
-
-    rest() {
-        if (this.activeEvent || this.alanMet) return;
-        let nrgRec, hpRec;
-        
-        if (this.isSafe) {
-            this.ui.log(`"the synthetic air in the cabin is sweet. i sleep deeply."`, 'success');
-            nrgRec = 100; hpRec = 20;
-            this.wellRestedTurns = 40;
-        } else if (this.isRestArea) {
-            this.ui.log(`"i curl up on the ledge, wrapping my arms around a beam."`);
-            nrgRec = this.isNight ? 15 : 30;
-            hpRec = 5;
-        } else {
-            this.ui.log(`"i hook my legs through the rungs and dangle. my spine cracks."`, 'danger');
-            nrgRec = this.isNight ? 5 : 10;
-            hpRec = 1;
+        function solve(e, url) {
+            e.preventDefault();
+            const wipe = document.getElementById('wipe');
+            wipe.style.transform = 'scaleY(1)';
+            setTimeout(() => {
+                window.location.href = url;
+            }, 550);
         }
 
-        this.p.nrg = Math.min(100, this.p.nrg + nrgRec);
-        this.p.hp = Math.min(100, this.p.hp + hpRec);
-        this.tick(this.isSafe);
-    }
-
-    inspect() {
-        if (this.activeEvent || this.alanMet) return;
-        if (this.isSafe) {
-            let found = false;
-            if (!this.p.hasGloves) { this.p.hasGloves = true; this.ui.log(`"found climbing gloves in a locker."`, 'success'); found = true; }
-            if (!this.p.hasBlade) { this.p.hasBlade = true; this.ui.log(`"found a crimson blade under a bench."`, 'success'); found = true; }
-            if (!found) {
-                if (!this.hasSeenEricPoster && Math.random() < 0.3) {
-                    this.hasSeenEricPoster = true;
-                    this.ui.log(`"found a poster: 'BEWARE OF ERIC'. hauntings increased."`, 'story');
-                } else this.ui.log(`"the cabin is empty of more tools."`);
-            }
-            this.tick(true);
-        } else {
-            this.ui.log(`"scavenged through the rust..."`);
-            if (Math.random() < 0.3) this.triggerEvent();
-            else this.ui.log(`"just more debris."`);
-            this.tick();
-        }
-    }
-
-    summitReached() {
-        this.ui.log(`"i reach the summit. the wind is howling, but alan's words echo in my mind."`, 'story');
-        this.ui.log(`"i must go back to the beginning. i must prove myself worthy."`, 'story');
-        this.phase = 1;
-        this.descending = true;
-        this.ui.updateClimbButton("climb down");
-    }
-
-    triggerFirstDanielEncounter() {
-        this.ui.log(`"i look down... a blue glow is scaling the bottom of the tower. it's a daniel."`, 'daniel-msg');
-        this.triggerDanielEncounter();
-    }
-
-    triggerDanielEncounter() {
-        const e = {
-            text: `"the daniel sparks! the section ahead is electrified!"`,
-            buttons: [{ label: "push through", class: "elec-btn" }],
-            resolve: () => {
-                const failChance = this.zenActive ? 0.05 : (this.p.hasGloves ? 0.3 : 0.85);
-                if (Math.random() > failChance) {
-                    this.ui.log(`"i made it through the static."`, 'success');
-                } else {
-                    let dmg = 30;
-                    if (this.zenActive) dmg *= 0.1; // 90% resistance
-                    this.p.hp -= dmg; 
-                    this.h = this.descending ? Math.min(this.maxH, this.h + 350) : Math.max(0, this.h - 350);
-                    this.ui.log(`"shocked! i slipped 350m!"`, 'danger');
-                }
-                this.activeEvent = null; this.ui.hideContext(); this.tick();
-            }
-        };
-        this.activeEvent = e; this.ui.showContext(e);
-    }
-
-    triggerNealEncounter() {
-        if (this.activeEvent) return;
-        let btns = [];
-        if (this.p.hasBlade) btns.push({ label: "attack (blade)", class: "combat-btn" });
-        if (this.p.inv.includes('wrench')) btns.push({ label: "attack (wrench)", class: "combat-btn" });
-        
-        btns.push({ label: "dodge", class: "" });
-        if (this.isRestArea) btns.push({ label: "juke", class: "elec-btn" });
-
-        const baseDmg = this.nealEvolved ? 45 : 15;
-        
-        const nealDialogue = [
-            `"the evolved neal's limbs are like obsidian shards, cutting the air."`,
-            `"it emits a frequency that makes my teeth ache. it's faster than before."`,
-            `"those jagged edges... they're not just shadows. they're solid."`,
-            `"the thing below is barely recognizable as the neal i first met."`,
-            `"it's climbing the outer struts with terrifying grace."`
-        ];
-
-        const e = {
-            text: this.nealEvolved ? nealDialogue[Math.floor(Math.random() * nealDialogue.length)] : `"the neal strikes!"`,
-            buttons: btns,
-            resolve: (choice) => {
-                let giveUpChance = (this.nealEvolved || this.phase === 2) ? 0.25 : 1.0;
-                let dodgeChance = this.nealEvolved ? 0.2 : 0.4;
-                if (choice === "juke") dodgeChance = this.nealEvolved ? 0.6 : 0.9;
-                
-                if (this.zenActive) dodgeChance += 0.3; // +30% effectiveness
-
-                const wrenchLines = [
-                    `"i swung the heavy wrench, metal clashing against metal."`,
-                    `"a dull thud as the wrench hits neal's shoulder."`,
-                    `"the wrench vibrates as i strike the jagged entity."`,
-                    `"neal shrieks as the heavy tool crushes a segment of its shadow."`,
-                    `"barely connecting, the wrench sends sparks flying."`,
-                    `"i used the leverage to shove neal back with the wrench."`,
-                    `"the wrench is heavy, but it found its mark."`,
-                    `"neal flinched from the weight of the steel."`,
-                    `"a desperate swing connects with neal's midsection."`,
-                    `"the wrench is cold, hard, and effective enough."`
-                ];
-
-                const failLines = [
-                    `"neal's claws rake across my chest!"`,
-                    `"it threw me against the framework!"`,
-                    `"a cold bite into my shoulder... i'm bleeding."`,
-                    `"it lunged faster than i could react."`,
-                    `"the jagged shadow tore into my grip."`
-                ];
-
-                if (choice.includes("attack")) {
-                    let hitChance = choice.includes("blade") ? 0.8 : 0.55;
-                    if (Math.random() < hitChance) {
-                        if (choice.includes("wrench")) this.ui.log(wrenchLines[Math.floor(Math.random() * wrenchLines.length)], 'success');
-                        else this.ui.log(`"i slashed the neal with the crimson blade!"`, 'success');
-
-                        if(Math.random() < giveUpChance) { this.hasNeal = false; this.ui.log(`"it retreated."`); }
-                        else { this.nealDist = 200; this.ui.log(`"it didn't give up! it's still coming!"`, 'danger'); }
-                    } else {
-                        this.ui.log(failLines[Math.floor(Math.random() * failLines.length)], 'danger');
-                        let dmg = baseDmg + 5;
-                        if (this.zenActive) dmg *= 0.1;
-                        this.p.hp -= dmg; this.nealDist = 200; 
-                    }
-                } else {
-                    if (Math.random() < dodgeChance) { 
-                        this.ui.log(choice === "juke" ? `"a perfect juke! neal fumbled the strike!"` : `"dodged it!"`, 'success'); 
-                        if(Math.random() < giveUpChance) { this.hasNeal = false; }
-                        else { this.nealDist = 200; this.ui.log(`"it recovered instantly!"`, 'danger'); }
-                    } else { 
-                        this.ui.log(failLines[Math.floor(Math.random() * failLines.length)], 'danger');
-                        let dmg = baseDmg;
-                        if (this.zenActive) dmg *= 0.1;
-                        this.p.hp -= dmg; this.nealDist = 200; 
-                    }
-                }
-                
-                this.activeEvent = null; this.ui.hideContext(); this.tick();
-            }
-        };
-        this.activeEvent = e; this.ui.showContext(e);
-    }
-
-    triggerAlanEncounter() {
-        this.alanMet = true;
-        this.hasNeal = false;
-        this.hasDaniel = false;
-        
-        if (!this.metAlanFirstTime) {
-            this.ui.log(`"alan is still here. watching the clouds."`, 'story');
-            this.ui.showAlanDialogue();
-        } else {
-            this.ui.log(`"alan stands as i approach. he looks satisfied."`, 'story');
-            this.ui.showAlanSecondEncounter();
-        }
-    }
-
-    handleAlanDialogue(choice) {
-        this.alanStep++;
-        const steps = {
-            1: {
-                msg: `"thousands of times... i have climbed this spine," alan says. "be still."`,
-                btns: [{label: "how do i survive?"}]
-            },
-            2: {
-                msg: `"climb higher than the air. then, if you are worthy, return to me after touching the earth again. i will be waiting."`,
-                btns: [{label: "i will return."}]
-            }
-        };
-
-        const current = steps[this.alanStep];
-        if (current) {
-            this.ui.log(`alan: ${current.msg}`, 'alan');
-            this.ui.renderAlanButtons(current.btns);
-        } else {
-            this.ui.log(`"alan closes his eyes. i feel a strange weight lift from my shoulders."`, 'story');
-            this.ui.log(`"unified peace in mind & body. i am ready."`, 'buff-msg');
-            this.zenActive = true;
-            this.metAlanFirstTime = true;
-            this.alanMet = false;
-            this.ui.hideAlanDialogue();
-            this.tick();
-        }
-    }
-
-    handleFinalLesson() {
-        this.ui.log(`alan: "the lesson is simple. happiness is not a peak to be conquered, but the way you breathe while you are climbing."`, 'alan');
-        setTimeout(() => {
-            this.win(`the summit was just a destination. the climb was the life.`);
-        }, 3000);
-    }
-
-    triggerEvent() {
-        const e = { 
-            text: `"a sealed container."`, btn: "pry", 
-            resolve: () => {
-                if (this.p.inv.includes('wrench')) {
-                    this.ui.log(`"found supplies."`, 'success');
-                    this.p.inv.push('ramen'); this.p.inv.push('water');
-                } else this.ui.log(`"need a wrench to pry this open."`, 'danger');
-                this.activeEvent = null; this.ui.hideContext(); this.tick();
-            }
-        };
-        this.activeEvent = e; this.ui.showContext({ buttons: [{label: e.btn, class: ""}], resolve: e.resolve });
-    }
-
-    useItem(idx) {
-        const id = this.p.inv[idx];
-        const item = ITEMS[id];
-        if (id === 'ramen' && !this.isSafe && !this.isRestArea) {
-            this.ui.log(`"can't cook while hanging."`, 'danger'); return;
-        }
-        if (id === 'wrench') {
-            this.ui.log(`"i can't 'use' this here. i'll keep it for defense."`); return;
-        }
-
-        if (id === 'ramen') this.ui.log(`"the steam hits my face. i feel home for a second."`, 'buff-msg');
-
-        if (item.effect.hp) this.p.hp = Math.min(100, this.p.hp + item.effect.hp);
-        if (item.effect.nrg) this.p.nrg = Math.min(100, this.p.nrg + item.effect.nrg);
-        if (item.effect.regenHp) { 
-            this.saturatedTurns = item.effect.saturated; 
-            this.energized = true; 
-        }
-        this.p.inv.splice(idx, 1);
-        this.ui.renderInv(); this.ui.update();
-    }
-
-    end(msg) {
-        this.ui.log(`"${msg}"`, 'danger');
-        document.getElementById('controls-area').innerHTML = `<button onclick="location.reload()">try again</button>`;
-    }
-
-    win(lesson) {
-        document.getElementById('game-layout').innerHTML = `
-            <div class="victory-screen">
-                <h2 style="color: #ff0000;">the final lesson</h2>
-                <p style="font-style: italic; font-size: 1.1rem; color: #ff0000;">"${lesson}"</p>
-                <button style="margin-top:40px; color: #ff0000; border-color: #4a0007;" onclick="location.reload()">begin anew</button>
-            </div>`;
-    }
-}
-
-class UI {
-    constructor() { this.logEl = document.getElementById('log-container'); }
-    update() {
-        document.getElementById('stat-alt').innerText = `${Math.floor(game.h)}m`;
-        document.getElementById('stat-hp').innerText = `${game.p.hp}%`;
-        document.getElementById('stat-nrg').innerText = `${game.p.nrg}%`;
-        const buffs = document.getElementById('buff-indicator');
-        buffs.innerHTML = '';
-        
-        const addTag = (id, label, styleClass, tooltipText) => {
-            const span = document.createElement('span');
-            span.className = `status-tag ${styleClass}`;
-            span.innerHTML = `${label}<span class="tooltip">${tooltipText}</span>`;
-            buffs.appendChild(span);
-        };
-
-        if (game.p.hasBlade) addTag('blade', '[blade]', 'blade-status', 'increases combat effectiveness');
-        if (game.p.hasGloves) addTag('gloves', '[gloves]', 'glove-status', 'increases climbing proficiency');
-        if (game.wellRestedTurns > 0) addTag('rested', '[rested]', 'buff-well-rested', `0 energy cost for ${game.wellRestedTurns} turns.`);
-        if (game.zenActive) addTag('zen', '[zen]', 'buff-zen', 'unified peace: +120% dist, -80% nrg drain, 90% dmg reduction.');
-        
-        if (game.saturatedTurns > 0) {
-            const satLabel = game.energized ? '[energized]' : '[saturated]';
-            addTag('sat', satLabel, 'buff-msg', 'healing and increased vitality.');
-        }
-
-        if (game.hauntedTurns > 0) addTag('haunt', '[haunt]', 'buff-haunt', 'a presence is distracting and slowing you.');
-        if (game.hasDaniel) addTag('daniel', '[daniel]', 'daniel-status', 'electrical build-up nearby.');
-    }
-
-    updateClimbButton(text) { document.getElementById('btn-climb').innerText = text; }
-
-    log(msg, type = '') {
-        const d = document.createElement('div');
-        d.className = `log-entry ${type}`;
-        d.innerText = msg;
-        this.logEl.appendChild(d);
-        this.logEl.scrollTop = this.logEl.scrollHeight;
-    }
-
-    showAlanDialogue() {
-        document.getElementById('standard-controls').classList.add('hidden');
-        const area = document.getElementById('alan-dialogue');
-        area.classList.remove('hidden');
-        this.renderAlanButtons([{label: "who are you?"}]);
-    }
-
-    showAlanSecondEncounter() {
-        document.getElementById('standard-controls').classList.add('hidden');
-        const area = document.getElementById('alan-dialogue');
-        area.classList.remove('hidden');
-        area.innerHTML = '';
-        const b = document.createElement('button');
-        b.innerText = "i have returned.";
-        b.className = 'alan-btn';
-        b.onclick = () => game.handleFinalLesson();
-        area.appendChild(b);
-    }
-
-    renderAlanButtons(btns) {
-        const area = document.getElementById('alan-dialogue');
-        area.innerHTML = '';
-        btns.forEach(btn => {
-            const b = document.createElement('button');
-            b.innerText = btn.label;
-            b.className = 'alan-btn';
-            b.onclick = () => game.handleAlanDialogue(btn.label);
-            area.appendChild(b);
-        });
-    }
-
-    hideAlanDialogue() {
-        document.getElementById('alan-dialogue').classList.add('hidden');
-        document.getElementById('standard-controls').classList.remove('hidden');
-    }
-
-    showContext(e) {
-        const ctx = document.getElementById('context-actions');
-        ctx.innerHTML = ''; ctx.classList.remove('hidden');
-        e.buttons.forEach(btn => {
-            const b = document.createElement('button');
-            b.innerText = btn.label; b.className = btn.class;
-            b.onclick = () => e.resolve(btn.label);
-            ctx.appendChild(b);
-        });
-        const s = document.createElement('button');
-        s.innerText = "skip"; s.onclick = () => { game.activeEvent = null; this.hideContext(); game.tick(); };
-        ctx.appendChild(s);
-    }
-
-    hideContext() { document.getElementById('context-actions').classList.add('hidden'); }
-
-    toggleInventory() { document.getElementById('modal-overlay').classList.toggle('open'); this.renderInv(); }
-
-    renderInv() {
-        const list = document.getElementById('inventory-list');
-        list.innerHTML = '';
-        const counts = {};
-        game.p.inv.forEach(id => counts[id] = (counts[id] || 0) + 1);
-        Object.keys(counts).forEach(id => {
-            const item = ITEMS[id] || { name: id };
-            const d = document.createElement('div');
-            d.className = 'inv-item';
-            d.innerHTML = `<span>${item.name} (x${counts[id]})</span>`;
-            if (item.effect || id === 'wrench') {
-                const u = document.createElement('span');
-                u.className = 'inv-use'; u.innerText = id === 'wrench' ? 'info' : 'use';
-                u.onclick = () => { game.useItem(game.p.inv.indexOf(id)); };
-                d.appendChild(u);
-            }
-            list.appendChild(d);
-        });
-    }
-}
-
-const game = new Game();
-window.onload = () => game.start();
-</script>
+        window.onload = generateMath;
+    </script>
 </body>
 </html>
