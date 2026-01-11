@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ascii tide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:wght@300;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #010409;
+            --deep: #172554;
+            --mid: #1d4ed8;
+            --light: #60a5fa;
+            --accent: #fbbf24;
+            --common: #4ade80;
+            --rare: #60a5fa;
+            --epic: #c084fc;
+            --legendary: #fbbf24;
+            --mythical: #f87171;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--light);
+            font-family: 'Google Sans Code', monospace;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            text-transform: lowercase;
+        }
+
+        #ui-layer {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 50;
+            pointer-events: none;
+            transition: opacity 2s ease-in-out;
+        }
+
+        #ui-top {
+            position: absolute;
+            top: 1.5rem; left: 1.5rem; right: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .stat-group { display: flex; flex-direction: column; gap: 0.2rem; pointer-events: auto; }
+        .stat { font-weight: 300; font-size: 0.85rem; opacity: 0.9; }
+        .btn { cursor: pointer; text-decoration: underline; color: var(--light); transition: opacity 0.2s; padding: 6px 0; display: inline-block; }
+        .btn:hover { opacity: 0.6; }
+
+        #canvas-container {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+
+        #ascii-layer {
+            white-space: pre;
+            line-height: 1;
+            font-size: 10px;
+            color: var(--mid);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(1, 4, 9, 0.98);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            padding: 4rem 2rem;
+            overflow-y: auto;
+            pointer-events: auto;
+        }
+
+        .modal-header { font-size: 1.5rem; margin-bottom: 2rem; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; }
+        .card { border: 1px solid #1e293b; padding: 1.2rem; border-radius: 4px; background: rgba(255,255,255,0.02); }
+        .card.locked { opacity: 0.2; }
+        
+        .close-trigger { position: fixed; top: 1.5rem; right: 1.5rem; font-size: 1.1rem; cursor: pointer; z-index: 1100; text-decoration: underline; }
+
+        .w-light { color: var(--light); }
+        .w-mid { color: var(--mid); }
+        .w-deep { color: var(--deep); }
+        .w-common { color: var(--common); }
+        .w-rare { color: var(--rare); }
+        .w-epic { color: var(--epic); }
+        .w-legendary { color: var(--legendary); }
+        .w-mythical { color: var(--mythical); }
+        .w-accent { color: var(--accent); }
+
+        #ending-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            background: transparent;
+            opacity: 0;
+            transition: opacity 3s ease-in-out;
+        }
+
+        #ending-art {
+            white-space: pre;
+            line-height: 1.2;
+            font-size: 14px;
+            color: var(--light);
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        #dedication {
+            font-weight: 300;
+            font-size: 0.9rem;
+            opacity: 0.6;
+            letter-spacing: 0.1em;
+        }
+
+        #status-msg {
+            position: fixed;
+            bottom: 3rem;
+            width: 100%;
+            text-align: center;
+            opacity: 0.6;
+            pointer-events: none;
+            font-size: 0.9rem;
+            z-index: 5;
+        }
+
+        .shop-buy-btn { display: inline-block; margin-top: 10px; padding: 4px 8px; border: 1px solid var(--light); font-size: 0.8rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="ui-top">
+            <div class="stat-group">
+                <div class="stat">gold: <span id="gold-count" class="w-accent">0</span></div>
+                <div class="stat" id="rod-display">rod: wood</div>
+                <div id="active-status" class="stat">tap to cast</div>
+            </div>
+            <div class="stat-group" style="text-align: right;">
+                <div class="btn" id="open-journal">journal</div>
+                <div class="btn" id="open-shop">shop</div>
+            </div>
+        </div>
+        <div id="status-msg">ascii tide</div>
+    </div>
+
+    <div id="ending-overlay">
+        <div id="ending-art">
+  _      _ _ _ 
+ /  |_| | | |  
+ \_ | | | | |_ 
+               
+        </div>
+        <div id="dedication">dedicated to neal z</div>
+    </div>
+
+    <div id="canvas-container">
+        <div id="ascii-layer"></div>
+    </div>
+
+    <div id="journal" class="modal">
+        <div class="close-trigger" id="close-journal">close journal</div>
+        <div class="modal-header">fish journal</div>
+        <div id="journal-grid" class="grid"></div>
+    </div>
+
+    <div id="shop" class="modal">
+        <div class="close-trigger" id="close-shop">close shop</div>
+        <div class="modal-header">rod shop</div>
+        <div id="shop-list" class="grid"></div>
+    </div>
+
+    <script>
+        const SAVE_KEY = 'ascii_tide_final_v2';
+        let gameState = { gold: 0, rodLevel: 0, collection: {}, finished: false };
+
+        const fishData = [
+            { id: 'f1', name: "pale minnow", icon: "«", val: 5, weight: 1.0, taps: 1, rarity: 'common' },
+            { id: 'f2', name: "moss gill", icon: "⸚", val: 12, weight: 0.6, taps: 1, rarity: 'common' },
+            { id: 'f3', name: "glass eel", icon: "∽", val: 35, weight: 0.35, taps: 1, rarity: 'rare' },
+            { id: 'f4', name: "azure dart", icon: "⫸", val: 80, weight: 0.2, taps: 3, rarity: 'rare' },
+            { id: 'f5', name: "purple haze", icon: "⩶", val: 200, weight: 0.1, taps: 7, rarity: 'epic' },
+            { id: 'f6', name: "star shell", icon: "⁕", val: 600, weight: 0.05, taps: 12, rarity: 'legendary' },
+            { id: 'f7', name: "void leviathan", icon: "⨀", val: 5000, weight: 0.015, taps: 30, rarity: 'mythical' }
+        ];
+
+        const rods = [
+            { name: "wood", cost: 0, power: 1, luck: 1.0, lureMult: 1.0 },
+            { name: "carbon", cost: 500, power: 2, luck: 2.5, lureMult: 1.4 },
+            { name: "void", cost: 3500, power: 4, luck: 5.0, lureMult: 2.0 },
+            { name: "depthseeker", cost: 15000, power: 8, luck: 10.0, lureMult: 3.5 }
+        ];
+
+        let width, height, time = 0;
+        let rodState = { active: false, x: 0, y: 0, state: 'idle', targetFish: null, tapsDone: 0, tapsNeeded: 0, lastTap: 0, isCinematic: false };
+        let particles = [];
+
+        function saveGame() { localStorage.setItem(SAVE_KEY, JSON.stringify(gameState)); }
+        function loadGame() {
+            const saved = localStorage.getItem(SAVE_KEY);
+            if (saved) {
+                try {
+                    gameState = { ...gameState, ...JSON.parse(saved) };
+                    if(gameState.finished) triggerEnding(true);
+                    updateUI();
+                } catch(e) {}
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('gold-count').innerText = gameState.gold;
+            document.getElementById('rod-display').innerText = `rod: ${rods[gameState.rodLevel].name}`;
+        }
+
+        function toggleModal(id, show) {
+            if(gameState.finished) return;
+            document.getElementById(id).style.display = show ? 'flex' : 'none';
+            if(show) { if(id === 'journal') renderJournal(); if(id === 'shop') renderShop(); }
+        }
+
+        function renderJournal() {
+            const grid = document.getElementById('journal-grid');
+            grid.innerHTML = fishData.map(f => {
+                const count = gameState.collection[f.id] || 0;
+                return `<div class="card ${count === 0 ? 'locked' : ''}"><div class="w-${f.rarity}">${f.rarity}</div><div style="font-size:1.4rem; margin:0.6rem 0">${f.icon}</div><div>${count > 0 ? f.name : '???'}</div><div style="font-size:0.75rem; opacity:0.5; margin-top:0.4rem">caught: ${count}</div></div>`;
+            }).join('');
+        }
+
+        function renderShop() {
+            const list = document.getElementById('shop-list');
+            list.innerHTML = rods.map((r, i) => {
+                const owned = gameState.rodLevel >= i;
+                return `<div class="card"><div style="font-weight:500">${r.name} rod</div><div style="margin:0.8rem 0; font-size:0.8rem; line-height:1.4">power: x${r.power}<br/>luck: x${r.luck}<br/>lure speed: x${r.lureMult}</div>${owned ? '<div style="opacity:0.5; font-size:0.8rem">[owned]</div>' : `<div class="shop-buy-btn" onclick="buyRod(${i})">buy: ${r.cost}g</div>`}</div>`;
+            }).join('');
+        }
+
+        window.buyRod = function(idx) {
+            if(gameState.gold >= rods[idx].cost) {
+                gameState.gold -= rods[idx].cost; gameState.rodLevel = idx;
+                updateUI(); renderShop(); saveGame();
+            }
+        };
+
+        function triggerEnding(skipAnim = false) {
+            gameState.finished = true;
+            saveGame();
+            const ui = document.getElementById('ui-layer');
+            const overlay = document.getElementById('ending-overlay');
+            
+            if(skipAnim) {
+                ui.style.display = 'none';
+                overlay.style.display = 'flex';
+                overlay.style.opacity = '1';
+                return;
+            }
+
+            ui.style.opacity = '0';
+            setTimeout(() => {
+                ui.style.display = 'none';
+                overlay.style.display = 'flex';
+                setTimeout(() => overlay.style.opacity = '1', 100);
+            }, 2000);
+        }
+
+        function handleInput(e) {
+            if (gameState.finished || rodState.isCinematic) return;
+            if (e.target.closest('.stat-group') || e.target.closest('.modal')) return;
+
+            const x = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+            const y = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+            const gx = Math.floor(x / (window.innerWidth / width));
+            const gy = Math.floor(y / (window.innerHeight / height));
+
+            if(!rodState.active) {
+                rodState.active = true; rodState.x = gx; rodState.y = gy; rodState.state = 'waiting';
+                document.getElementById('active-status').innerText = "waiting..."; createSplash(gx, gy);
+                
+                const wait = (1000 + Math.random() * 2500) / rods[gameState.rodLevel].lureMult;
+                setTimeout(() => {
+                    if(rodState.active && rodState.state === 'waiting') {
+                        const luck = rods[gameState.rodLevel].luck;
+                        const weightedPool = fishData.map(f => ({ ...f, cw: f.weight * (f.rarity !== 'common' ? luck : 1) }));
+                        const total = weightedPool.reduce((a, b) => a + b.cw, 0);
+                        let roll = Math.random() * total;
+                        for(let f of weightedPool) { if(roll <= f.cw) { rodState.targetFish = f; break; } roll -= f.cw; }
+                        if(!rodState.targetFish) rodState.targetFish = fishData[0];
+
+                        rodState.state = 'bite'; rodState.tapsDone = 0; rodState.lastTap = Date.now();
+                        rodState.tapsNeeded = Math.max(1, rodState.targetFish.taps - (rods[gameState.rodLevel].power - 1));
+                        document.getElementById('active-status').innerText = rodState.tapsNeeded > 5 ? "it's a legend!" : "bite!";
+                    }
+                }, wait);
+            } else if(rodState.state === 'bite') {
+                rodState.tapsDone++; rodState.lastTap = Date.now();
+                createSplash(rodState.x, rodState.y, 2, `w-${rodState.targetFish.rarity}`);
+                
+                if(rodState.tapsDone >= rodState.tapsNeeded) {
+                    if (rodState.targetFish.id === 'f7') {
+                        // CINEMATIC FINISH for Void Leviathan
+                        rodState.isCinematic = true;
+                        document.getElementById('active-status').innerText = "reeling it in...";
+                        createSplash(rodState.x, rodState.y, 20, 'w-mythical');
+                        
+                        let frames = 0;
+                        const pullInterval = setInterval(() => {
+                            frames++;
+                            createSplash(rodState.x, rodState.y - frames, 3, 'w-light');
+                            if(frames > 15) {
+                                clearInterval(pullInterval);
+                                gameState.gold += rodState.targetFish.val;
+                                gameState.collection[rodState.targetFish.id] = (gameState.collection[rodState.targetFish.id] || 0) + 1;
+                                updateUI();
+                                rodState.active = false;
+                                rodState.isCinematic = false;
+                                triggerEnding();
+                            }
+                        }, 100);
+                    } else {
+                        gameState.gold += rodState.targetFish.val;
+                        gameState.collection[rodState.targetFish.id] = (gameState.collection[rodState.targetFish.id] || 0) + 1;
+                        updateUI();
+                        document.getElementById('active-status').innerText = `caught ${rodState.targetFish.name}!`;
+                        createSplash(rodState.x, rodState.y, 10, 'w-accent');
+                        rodState.active = false;
+                        saveGame();
+                    }
+                } else {
+                    const rem = rodState.tapsNeeded - rodState.tapsDone;
+                    document.getElementById('active-status').innerText = `pull! (${rem})`;
+                }
+            } else if(rodState.state === 'waiting') {
+                document.getElementById('active-status').innerText = "too early"; rodState.active = false;
+            }
+        }
+
+        function createSplash(x, y, count=4, cls='w-light') {
+            for(let i=0; i<count; i++) {
+                particles.push({ x, y, vx: (Math.random()-0.5)*0.6, vy: (Math.random()-0.5)*0.4, char: Math.random()>0.5 ? '·' : '°', life: 1.0, cls });
+            }
+        }
+
+        function getWater(x, y, t) {
+            const sx = x * 0.08, sy = y * 0.12, st = t * 0.012;
+            const v = (Math.sin(sx + st) + Math.cos(sy - st * 0.8) + Math.sin((sx + sy) * 0.5 + st * 0.5) + Math.sin(Math.sqrt(sx*sx + sy*sy) - st)) / 4;
+            if(v > 0.65) return { c: '≈', cls: 'w-light' };
+            if(v > 0.25) return { c: '~', cls: 'w-mid' };
+            if(v > -0.2) return { c: '∽', cls: 'w-mid' };
+            if(v > -0.6) return { c: '≡', cls: 'w-deep' };
+            return { c: '·', cls: 'w-deep' };
+        }
+
+        function loop() {
+            time++;
+            if(rodState.active && rodState.state === 'bite' && !rodState.isCinematic && Date.now() - rodState.lastTap > 1500) {
+                document.getElementById('active-status').innerText = "line snapped..."; rodState.active = false;
+            }
+            for(let i=particles.length-1; i>=0; i--) {
+                const p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= 0.035;
+                if(p.life <= 0) particles.splice(i, 1);
+            }
+
+            const canvas = document.getElementById('ascii-layer');
+            const charW = 7.5, charH = 11;
+            const newW = Math.floor(window.innerWidth / charW);
+            const newH = Math.floor(window.innerHeight / charH);
+            if(newW !== width || newH !== height) { width = newW; height = newH; }
+
+            let out = "";
+            for(let y=0; y<height; y++) {
+                let row = "";
+                for(let x=0; x<width; x++) {
+                    let {c, cls} = getWater(x, y, time);
+                    for(let p of particles) if(Math.round(p.x)===x && Math.round(p.y)===y) { c=p.char; cls=p.cls; }
+                    if(rodState.active && Math.round(rodState.x)===x && Math.round(rodState.y)===y) {
+                        if(rodState.state === 'bite') { c=rodState.targetFish.icon; cls=`w-${rodState.targetFish.rarity}`; }
+                        else { c='¡'; cls='w-light'; }
+                    }
+                    row += (cls === 'w-mid') ? c : `<span class="${cls}">${c}</span>`;
+                }
+                out += row + "\n";
+            }
+            canvas.innerHTML = out;
+            requestAnimationFrame(loop);
+        }
+
+        document.getElementById('open-journal').onclick = () => toggleModal('journal', true);
+        document.getElementById('open-shop').onclick = () => toggleModal('shop', true);
+        document.getElementById('close-journal').onclick = () => toggleModal('journal', false);
+        document.getElementById('close-shop').onclick = () => toggleModal('shop', false);
+        window.addEventListener('mousedown', handleInput);
+        window.addEventListener('touchstart', e => { if (!e.target.closest('.stat-group') && !e.target.closest('.modal')) { e.preventDefault(); handleInput(e.touches[0]); } }, {passive:false});
+
+        loadGame();
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>
