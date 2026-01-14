@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-    (function(){
-    const BYPASS = false;
-    if(BYPASS) return;
-    const n = new Date(), d = n.getDay(), t = n.getHours() * 60 + n.getMinutes();
-    const isWed = d === 3, start = isWed ? 570 : 480, end = 905;
-    if(d >= 1 && d <= 5 && t >= start && t < end) {
-        document.documentElement.innerHTML = '<head><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>html,body{margin:0;padding:0;width:100%;height:100%;background:#000!important;color:#fff!important;display:flex;align-items:center;justify-content:center;font-family:inherit;overflow:hidden}h1{font-weight:300;font-size:1.2rem;letter-spacing:0.05em;text-transform:lowercase}</style></head><body><h1>site deactivated: wait until 3:05</h1></body>';
-        window.stop();
-    }
-    })();
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>abyss</title>
@@ -24,7 +12,6 @@
             --bg: #000000;
             --white: #ffffff;
             --grey: #333333;
-            --dark-grey: #111111;
         }
 
         body {
@@ -80,7 +67,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             z-index: 10;
             transition: opacity 0.8s ease;
         }
@@ -108,7 +95,7 @@
             font-weight: 700;
             cursor: pointer;
             border-radius: 100px;
-            transition: transform 0.2s ease, opacity 0.2s ease;
+            transition: transform 0.2s ease;
         }
 
         button:active {
@@ -163,26 +150,26 @@
         x: 0,
         y: 0,
         r: 12,
-        maxR: 35,
-        speed: 4,
+        maxR: 80, // significantly more growth
         vx: 0,
         vy: 0,
-        baseDecay: 0.015, // much slower base decay
+        baseDecay: 0.01,
         keys: {}
     };
 
     let particles = [];
     let entities = []; 
     let backgroundStars = [];
+    let trail = [];
 
     function initStars() {
         backgroundStars = [];
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < 150; i++) {
             backgroundStars.push({
                 x: Math.random() * state.width,
                 y: Math.random() * state.height,
-                z: Math.random() * 0.5 + 0.1, 
-                size: Math.max(0.1, Math.random() * 2)
+                z: Math.random() * 0.8 + 0.1, 
+                size: Math.max(0.1, Math.random() * 2.5)
             });
         }
     }
@@ -214,32 +201,32 @@
     function spawn(type) {
         const side = Math.floor(Math.random() * 4);
         let x, y;
-        if (side === 0) { x = Math.random() * state.width; y = -40; }
-        else if (side === 1) { x = state.width + 40; y = Math.random() * state.height; }
-        else if (side === 2) { x = Math.random() * state.width; y = state.height + 40; }
-        else { x = -40; y = Math.random() * state.height; }
+        if (side === 0) { x = Math.random() * state.width; y = -50; }
+        else if (side === 1) { x = state.width + 50; y = Math.random() * state.height; }
+        else if (side === 2) { x = Math.random() * state.width; y = state.height + 50; }
+        else { x = -50; y = Math.random() * state.height; }
 
-        const angle = Math.atan2(player.y - y, player.x - x) + (Math.random() - 0.5) * 0.5;
-        let speed = type === 'photon' ? 1.2 : 2.0;
+        const angle = Math.atan2(player.y - y, player.x - x) + (Math.random() - 0.5) * 0.4;
+        let speed = type === 'photon' ? 1.5 : 2.2;
         if (type === 'eater') speed = 1.0;
 
         entities.push({
             type,
             x, y,
-            r: type === 'photon' ? 5 : (type === 'eater' ? 12 : Math.max(2, 8 + Math.random() * 10)),
+            r: type === 'photon' ? 5 : (type === 'eater' ? 18 : Math.max(4, 8 + Math.random() * 16)),
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
             pulse: 0
         });
     }
 
-    function createParticles(x, y, color, count, rMultiplier = 1) {
+    function createParticles(x, y, color, count, rMultiplier = 1, force = 8) {
         for (let i = 0; i < count; i++) {
             particles.push({
                 x, y,
-                vx: (Math.random() - 0.5) * 8,
-                vy: (Math.random() - 0.5) * 8,
-                r: Math.max(0.1, Math.random() * 3 * rMultiplier),
+                vx: (Math.random() - 0.5) * force,
+                vy: (Math.random() - 0.5) * force,
+                r: Math.max(0.1, Math.random() * 4 * rMultiplier),
                 life: 1.0,
                 color: color
             });
@@ -256,18 +243,20 @@
         player.vy = 0;
         entities = [];
         particles = [];
+        trail = [];
         scoreEl.innerText = '0';
         powerupUi.style.opacity = '0';
     }
 
     function gameOver() {
         state.active = false;
+        state.shake = 50;
         overlay.classList.remove('hidden');
         ui.classList.add('hidden');
         title.innerText = 'consumed';
         msg.innerText = `you reached a depth of ${state.score}`;
         startBtn.innerText = 'retry';
-        createParticles(player.x, player.y, '#fff', 40, 2);
+        createParticles(player.x, player.y, '#fff', 60, 2.5, 15);
     }
 
     function update(time) {
@@ -275,7 +264,6 @@
         const dt = (time - state.lastTime) / 16;
         state.lastTime = time;
 
-        // movement
         let ax = 0, ay = 0;
         if (player.keys['ArrowUp'] || player.keys['KeyW']) ay -= 1;
         if (player.keys['ArrowDown'] || player.keys['KeyS']) ay += 1;
@@ -289,17 +277,22 @@
             if (dist > 10) { ax = dx / dist; ay = dy / dist; }
         }
 
-        player.vx += ax * 0.7;
-        player.vy += ay * 0.7;
-        player.vx *= 0.93; 
-        player.vy *= 0.93;
+        player.vx += ax * 0.8;
+        player.vy += ay * 0.8;
+        player.vx *= 0.94; 
+        player.vy *= 0.94;
         player.x += player.vx;
         player.y += player.vy;
 
         player.x = Math.max(0, Math.min(state.width, player.x));
         player.y = Math.max(0, Math.min(state.height, player.y));
 
-        // powerup logic
+        // trail
+        if (Math.abs(player.vx) + Math.abs(player.vy) > 1) {
+            trail.unshift({ x: player.x, y: player.y, r: player.r });
+            if (trail.length > 15) trail.pop();
+        }
+
         if (state.powerupTime > 0) {
             state.powerupTime -= (16 * dt) / 1000;
             powerupUi.style.opacity = '1';
@@ -307,19 +300,17 @@
             if (state.powerupTime <= 0) powerupUi.style.opacity = '0';
         }
 
-        // dynamic decay: gets faster as score increases
-        const currentDecay = player.baseDecay + (state.score * 0.00001);
+        const currentDecay = player.baseDecay + (state.score * 0.000005);
         player.r -= currentDecay * dt;
         
-        if (player.r <= 2.5) {
+        if (player.r <= 3) {
             player.r = 0.1;
             gameOver();
         }
 
-        // spawning logic
-        if (Math.random() < 0.04) spawn('void');
-        if (Math.random() < 0.03) spawn('photon');
-        if (Math.random() < 0.002) spawn('eater'); // rare powerup
+        if (Math.random() < 0.05) spawn('void');
+        if (Math.random() < 0.035) spawn('photon');
+        if (Math.random() < 0.0015) spawn('eater');
 
         for (let i = entities.length - 1; i >= 0; i--) {
             const e = entities[i];
@@ -333,27 +324,31 @@
 
             if (dist < player.r + e.r) {
                 if (e.type === 'photon') {
-                    player.r = Math.min(player.maxR, player.r + 4);
+                    player.r = Math.min(player.maxR, player.r + 5);
                     state.score += 5;
                     scoreEl.innerText = state.score;
-                    state.shake = 8; 
-                    createParticles(e.x, e.y, '#fff', 8);
+                    state.shake = 12; 
+                    createParticles(e.x, e.y, '#fff', 10);
                 } else if (e.type === 'eater') {
                     state.powerupTime = 10;
-                    state.shake = 15;
-                    createParticles(e.x, e.y, '#fff', 20, 1.5);
+                    state.shake = 30;
+                    createParticles(e.x, e.y, '#fff', 30, 2, 12);
                 } else {
-                    // void tendril logic
                     if (state.powerupTime > 0) {
-                        state.score += 15;
+                        let gainScore = 5, sizeGain = 6;
+                        if (e.r > 12) { gainScore = 15; sizeGain = 12; }
+                        if (e.r > 18) { gainScore = 25; sizeGain = 20; }
+
+                        state.score += gainScore;
+                        player.r = Math.min(player.maxR, player.r + sizeGain);
                         scoreEl.innerText = state.score;
-                        state.shake = 5;
-                        createParticles(e.x, e.y, '#666', 10);
+                        state.shake = 15;
+                        createParticles(e.x, e.y, '#fff', 20, 1.2, 10);
                     } else {
-                        player.r -= 7;
-                        state.shake = 20;
-                        createParticles(e.x, e.y, '#333', 15);
-                        if (player.r <= 2.5) {
+                        player.r -= 10;
+                        state.shake = 40;
+                        createParticles(e.x, e.y, '#555', 25, 1.5, 14);
+                        if (player.r <= 3) {
                             player.r = 0.1;
                             gameOver();
                         }
@@ -363,7 +358,7 @@
                 continue;
             }
 
-            if (e.x < -150 || e.x > state.width + 150 || e.y < -150 || e.y > state.height + 150) {
+            if (e.x < -200 || e.x > state.width + 200 || e.y < -200 || e.y > state.height + 200) {
                 entities.splice(i, 1);
             }
         }
@@ -386,18 +381,26 @@
         if (state.shake > 0) {
             ctx.translate((Math.random() - 0.5) * state.shake, (Math.random() - 0.5) * state.shake);
             state.shake *= 0.9;
-            if (state.shake < 0.1) state.shake = 0;
         }
 
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, state.width, state.height);
 
         backgroundStars.forEach(s => {
-            const ox = (player.x - state.width/2) * s.z * -0.1;
-            const oy = (player.y - state.height/2) * s.z * -0.1;
+            const ox = (player.x - state.width/2) * s.z * -0.2;
+            const oy = (player.y - state.height/2) * s.z * -0.2;
             ctx.fillStyle = `rgba(255, 255, 255, ${s.z * 0.8})`;
             ctx.beginPath();
-            ctx.arc(s.x + ox, s.y + oy, Math.max(0, s.size), 0, Math.PI * 2);
+            ctx.arc(s.x + ox, s.y + oy, s.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // trail draw
+        trail.forEach((t, i) => {
+            const alpha = 1 - (i / trail.length);
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.2})`;
+            ctx.beginPath();
+            ctx.arc(t.x, t.y, t.r * (1 - i/20), 0, Math.PI * 2);
             ctx.fill();
         });
 
@@ -406,22 +409,21 @@
             if (e.type === 'photon') {
                 ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
                 ctx.fillStyle = '#fff';
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 20;
                 ctx.shadowColor = '#fff';
                 ctx.fill();
             } else if (e.type === 'eater') {
-                // powerup visual: hollow pulsing ring
-                const pulseR = e.r + Math.sin(e.pulse) * 4;
-                ctx.arc(e.x, e.y, Math.max(0.1, pulseR), 0, Math.PI * 2);
+                const s = 1 + Math.sin(e.pulse * 2) * 0.2;
+                ctx.arc(e.x, e.y, e.r * s, 0, Math.PI * 2);
                 ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 3;
+                ctx.lineWidth = 4;
                 ctx.stroke();
-                ctx.shadowBlur = 15;
+                ctx.shadowBlur = 25;
                 ctx.shadowColor = '#fff';
             } else {
                 ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
-                ctx.fillStyle = '#222';
-                ctx.strokeStyle = '#444';
+                ctx.fillStyle = '#111';
+                ctx.strokeStyle = '#333';
                 ctx.lineWidth = 2;
                 ctx.stroke();
                 ctx.shadowBlur = 0;
@@ -439,17 +441,26 @@
         ctx.globalAlpha = 1;
 
         if (player.r > 0) {
-            // void eater aura
+            ctx.save();
             if (state.powerupTime > 0) {
-                ctx.shadowBlur = 30 + Math.sin(Date.now() * 0.01) * 10;
-                ctx.shadowColor = '#fff';
+                // powerup geometric ring
+                const ringPulse = Math.sin(Date.now() * 0.01) * 10;
                 ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 6;
+                ctx.shadowBlur = 40;
+                ctx.shadowColor = '#fff';
                 ctx.beginPath();
-                ctx.arc(player.x, player.y, player.r + 8, 0, Math.PI * 2);
+                ctx.arc(player.x, player.y, player.r + 15 + ringPulse, 0, Math.PI * 2);
                 ctx.stroke();
+                
+                // inner solid pulsator
+                ctx.globalAlpha = 0.3;
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, player.r + 15 + ringPulse, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
             } else {
-                ctx.shadowBlur = 20;
+                ctx.shadowBlur = 30;
                 ctx.shadowColor = '#fff';
             }
             
@@ -457,7 +468,7 @@
             ctx.beginPath();
             ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
             ctx.fill();
-            ctx.shadowBlur = 0;
+            ctx.restore();
         }
 
         ctx.restore();
@@ -477,9 +488,9 @@
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, state.width, state.height);
             backgroundStars.forEach(s => {
-                ctx.fillStyle = `rgba(255, 255, 255, ${s.z * 0.4})`;
+                ctx.fillStyle = `rgba(255, 255, 255, ${s.z * 0.3})`;
                 ctx.beginPath();
-                ctx.arc(s.x, s.y, Math.max(0, s.size), 0, Math.PI * 2);
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
                 ctx.fill();
             });
             requestAnimationFrame(idle);
