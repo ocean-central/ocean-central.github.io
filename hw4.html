@@ -150,7 +150,7 @@
         x: 0,
         y: 0,
         r: 12,
-        maxR: 80, // significantly more growth
+        maxR: 80, 
         vx: 0,
         vy: 0,
         baseDecay: 0.01,
@@ -287,7 +287,6 @@
         player.x = Math.max(0, Math.min(state.width, player.x));
         player.y = Math.max(0, Math.min(state.height, player.y));
 
-        // trail
         if (Math.abs(player.vx) + Math.abs(player.vy) > 1) {
             trail.unshift({ x: player.x, y: player.y, r: player.r });
             if (trail.length > 15) trail.pop();
@@ -330,8 +329,9 @@
                     state.shake = 12; 
                     createParticles(e.x, e.y, '#fff', 10);
                 } else if (e.type === 'eater') {
-                    state.powerupTime = 10;
-                    state.shake = 30;
+                    // EFFECT STACKING: Add 10 seconds to existing time
+                    state.powerupTime += 10;
+                    state.shake = 35;
                     createParticles(e.x, e.y, '#fff', 30, 2, 12);
                 } else {
                     if (state.powerupTime > 0) {
@@ -395,7 +395,6 @@
             ctx.fill();
         });
 
-        // trail draw
         trail.forEach((t, i) => {
             const alpha = 1 - (i / trail.length);
             ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.2})`;
@@ -443,17 +442,16 @@
         if (player.r > 0) {
             ctx.save();
             if (state.powerupTime > 0) {
-                // powerup geometric ring
+                // Adjust pulse based on how much time is left (faster pulse for more time)
                 const ringPulse = Math.sin(Date.now() * 0.01) * 10;
                 ctx.strokeStyle = '#fff';
                 ctx.lineWidth = 6;
-                ctx.shadowBlur = 40;
+                ctx.shadowBlur = 40 + (state.powerupTime > 20 ? 20 : 0); // extra glow for stacked time
                 ctx.shadowColor = '#fff';
                 ctx.beginPath();
                 ctx.arc(player.x, player.y, player.r + 15 + ringPulse, 0, Math.PI * 2);
                 ctx.stroke();
                 
-                // inner solid pulsator
                 ctx.globalAlpha = 0.3;
                 ctx.beginPath();
                 ctx.arc(player.x, player.y, player.r + 15 + ringPulse, 0, Math.PI * 2);
