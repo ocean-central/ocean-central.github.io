@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:opsz,wght@17..18,400;17..18,700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         :root {
             --bg: #000000;
@@ -136,6 +137,43 @@
     const title = document.getElementById('title');
     const msg = document.getElementById('msg');
 
+    // --- AUDIO SETUP ---
+    const synth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "sine" },
+        envelope: { attack: 0.02, decay: 0.2, sustain: 0, release: 0.8 }
+    }).toDestination();
+    synth.volume.value = -15;
+
+    const scale = ["C4", "D4", "E4", "G4", "A4", "C5", "D5", "E5", "G5", "A5", "C6"];
+    
+    const sfx = {
+        photon: () => {
+            const highNotes = scale.slice(6);
+            const note = highNotes[Math.floor(Math.random() * highNotes.length)];
+            const duration = (Math.random() * 0.1 + 0.05).toFixed(2) + "s";
+            synth.triggerAttackRelease(note, duration, undefined, 0.4 + Math.random() * 0.4);
+        },
+        void: () => {
+            const lowNotes = ["G1", "A1", "C2", "E2"];
+            const note = lowNotes[Math.floor(Math.random() * lowNotes.length)];
+            synth.triggerAttackRelease(note, "8n", undefined, 0.5);
+        },
+        powerup: () => {
+            const now = Tone.now();
+            const rootIdx = Math.floor(Math.random() * (scale.length - 4));
+            synth.triggerAttackRelease(scale[rootIdx], "16n", now);
+            synth.triggerAttackRelease(scale[rootIdx + 2], "16n", now + 0.1);
+            synth.triggerAttackRelease(scale[rootIdx + 4], "16n", now + 0.2);
+        },
+        gameOver: () => {
+            const now = Tone.now();
+            const notes = ["C6", "G5", "E5", "C5", "G4", "E4", "C4"];
+            notes.forEach((note, i) => {
+                synth.triggerAttackRelease(note, "16n", now + (i * 0.12));
+            });
+        }
+    };
+
     let state = {
         active: false,
         score: 0,
@@ -143,13 +181,15 @@
         width: 0,
         height: 0,
         lastTime: 0,
-        powerupTime: 0
+        powerupTime: 0,
+        camX: 0,
+        camY: 0
     };
 
     const player = {
-        x: 0,
-        y: 0,
-        r: 12,
+        worldX: 0,
+        worldY: 0,
+        r: 15,
         maxR: 80, 
         vx: 0,
         vy: 0,
@@ -164,7 +204,8 @@
 
     function initStars() {
         backgroundStars = [];
-        for (let i = 0; i < 150; i++) {
+        // Larger area for stars to cover parallax movement
+        for (let i = 0; i < 250; i++) {
             backgroundStars.push({
                 x: Math.random() * state.width,
                 y: Math.random() * state.height,
@@ -199,20 +240,32 @@
     window.addEventListener('touchend', () => touch.active = false);
 
     function spawn(type) {
+        // Spawn relative to the current camera view
+        const padding = 100;
         const side = Math.floor(Math.random() * 4);
-        let x, y;
-        if (side === 0) { x = Math.random() * state.width; y = -50; }
-        else if (side === 1) { x = state.width + 50; y = Math.random() * state.height; }
-        else if (side === 2) { x = Math.random() * state.width; y = state.height + 50; }
-        else { x = -50; y = Math.random() * state.height; }
+        let wx, wy;
 
-        const angle = Math.atan2(player.y - y, player.x - x) + (Math.random() - 0.5) * 0.4;
+        if (side === 0) { // Top
+            wx = state.camX + Math.random() * state.width;
+            wy = state.camY - padding;
+        } else if (side === 1) { // Right
+            wx = state.camX + state.width + padding;
+            wy = state.camY + Math.random() * state.height;
+        } else if (side === 2) { // Bottom
+            wx = state.camX + Math.random() * state.width;
+            wy = state.camY + state.height + padding;
+        } else { // Left
+            wx = state.camX - padding;
+            wy = state.camY + Math.random() * state.height;
+        }
+
+        const angle = Math.atan2(player.worldY - wy, player.worldX - wx) + (Math.random() - 0.5) * 0.4;
         let speed = type === 'photon' ? 1.5 : 2.2;
         if (type === 'eater') speed = 1.0;
 
         entities.push({
             type,
-            x, y,
+            wx, wy,
             r: type === 'photon' ? 5 : (type === 'eater' ? 18 : Math.max(4, 8 + Math.random() * 16)),
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
@@ -220,10 +273,10 @@
         });
     }
 
-    function createParticles(x, y, color, count, rMultiplier = 1, force = 8) {
+    function createParticles(wx, wy, color, count, rMultiplier = 1, force = 8) {
         for (let i = 0; i < count; i++) {
             particles.push({
-                x, y,
+                wx, wy,
                 vx: (Math.random() - 0.5) * force,
                 vy: (Math.random() - 0.5) * force,
                 r: Math.max(0.1, Math.random() * 4 * rMultiplier),
@@ -236,8 +289,10 @@
     function reset() {
         state.score = 0;
         state.powerupTime = 0;
-        player.x = state.width / 2;
-        player.y = state.height / 2;
+        player.worldX = 0;
+        player.worldY = 0;
+        state.camX = -state.width / 2;
+        state.camY = -state.height / 2;
         player.r = 15;
         player.vx = 0;
         player.vy = 0;
@@ -256,7 +311,8 @@
         title.innerText = 'consumed';
         msg.innerText = `you reached a depth of ${state.score}`;
         startBtn.innerText = 'retry';
-        createParticles(player.x, player.y, '#fff', 60, 2.5, 15);
+        createParticles(player.worldX, player.worldY, '#fff', 60, 2.5, 15);
+        sfx.gameOver();
     }
 
     function update(time) {
@@ -271,8 +327,11 @@
         if (player.keys['ArrowRight'] || player.keys['KeyD']) ax += 1;
 
         if (touch.active) {
-            const dx = touch.x - player.x;
-            const dy = touch.y - player.y;
+            // Touch relative to player screen position
+            const screenPX = player.worldX - state.camX;
+            const screenPY = player.worldY - state.camY;
+            const dx = touch.x - screenPX;
+            const dy = touch.y - screenPY;
             const dist = Math.sqrt(dx*dx + dy*dy);
             if (dist > 10) { ax = dx / dist; ay = dy / dist; }
         }
@@ -281,14 +340,17 @@
         player.vy += ay * 0.8;
         player.vx *= 0.94; 
         player.vy *= 0.94;
-        player.x += player.vx;
-        player.y += player.vy;
+        player.worldX += player.vx;
+        player.worldY += player.vy;
 
-        player.x = Math.max(0, Math.min(state.width, player.x));
-        player.y = Math.max(0, Math.min(state.height, player.y));
+        // Camera smoothly follows player
+        const targetCamX = player.worldX - state.width / 2;
+        const targetCamY = player.worldY - state.height / 2;
+        state.camX += (targetCamX - state.camX) * 0.1;
+        state.camY += (targetCamY - state.camY) * 0.1;
 
-        if (Math.abs(player.vx) + Math.abs(player.vy) > 1) {
-            trail.unshift({ x: player.x, y: player.y, r: player.r });
+        if (Math.abs(player.vx) + Math.abs(player.vy) > 0.5) {
+            trail.unshift({ wx: player.worldX, wy: player.worldY, r: player.r });
             if (trail.length > 15) trail.pop();
         }
 
@@ -313,12 +375,12 @@
 
         for (let i = entities.length - 1; i >= 0; i--) {
             const e = entities[i];
-            e.x += e.vx;
-            e.y += e.vy;
+            e.wx += e.vx;
+            e.wy += e.vy;
             e.pulse += 0.1 * dt;
 
-            const dx = player.x - e.x;
-            const dy = player.y - e.y;
+            const dx = player.worldX - e.wx;
+            const dy = player.worldY - e.wy;
             const dist = Math.sqrt(dx*dx + dy*dy);
 
             if (dist < player.r + e.r) {
@@ -327,12 +389,13 @@
                     state.score += 5;
                     scoreEl.innerText = state.score;
                     state.shake = 12; 
-                    createParticles(e.x, e.y, '#fff', 10);
+                    createParticles(e.wx, e.wy, '#fff', 10);
+                    sfx.photon();
                 } else if (e.type === 'eater') {
-                    // EFFECT STACKING: Add 10 seconds to existing time
                     state.powerupTime += 10;
                     state.shake = 35;
-                    createParticles(e.x, e.y, '#fff', 30, 2, 12);
+                    createParticles(e.wx, e.wy, '#fff', 30, 2, 12);
+                    sfx.powerup();
                 } else {
                     if (state.powerupTime > 0) {
                         let gainScore = 5, sizeGain = 6;
@@ -343,11 +406,13 @@
                         player.r = Math.min(player.maxR, player.r + sizeGain);
                         scoreEl.innerText = state.score;
                         state.shake = 15;
-                        createParticles(e.x, e.y, '#fff', 20, 1.2, 10);
+                        createParticles(e.wx, e.wy, '#fff', 20, 1.2, 10);
+                        sfx.photon(); 
                     } else {
                         player.r -= 10;
                         state.shake = 40;
-                        createParticles(e.x, e.y, '#555', 25, 1.5, 14);
+                        createParticles(e.wx, e.wy, '#555', 25, 1.5, 14);
+                        sfx.void();
                         if (player.r <= 3) {
                             player.r = 0.1;
                             gameOver();
@@ -358,15 +423,18 @@
                 continue;
             }
 
-            if (e.x < -200 || e.x > state.width + 200 || e.y < -200 || e.y > state.height + 200) {
+            // Cleanup entities too far from camera
+            const distToCamX = e.wx - (state.camX + state.width / 2);
+            const distToCamY = e.wy - (state.camY + state.height / 2);
+            if (Math.abs(distToCamX) > state.width + 500 || Math.abs(distToCamY) > state.height + 500) {
                 entities.splice(i, 1);
             }
         }
 
         for (let i = particles.length - 1; i >= 0; i--) {
             const p = particles[i];
-            p.x += p.vx;
-            p.y += p.vy;
+            p.wx += p.vx;
+            p.wy += p.vy;
             p.life -= 0.02 * dt;
             if (p.life <= 0) particles.splice(i, 1);
         }
@@ -386,41 +454,54 @@
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, state.width, state.height);
 
+        // Parallax stars
         backgroundStars.forEach(s => {
-            const ox = (player.x - state.width/2) * s.z * -0.2;
-            const oy = (player.y - state.height/2) * s.z * -0.2;
+            // Wraparound stars based on camera movement
+            let sx = (s.x - state.camX * s.z * 0.5) % state.width;
+            let sy = (s.y - state.camY * s.z * 0.5) % state.height;
+            if (sx < 0) sx += state.width;
+            if (sy < 0) sy += state.height;
+
             ctx.fillStyle = `rgba(255, 255, 255, ${s.z * 0.8})`;
             ctx.beginPath();
-            ctx.arc(s.x + ox, s.y + oy, s.size, 0, Math.PI * 2);
+            ctx.arc(sx, sy, s.size, 0, Math.PI * 2);
             ctx.fill();
         });
 
+        // Draw trail (world to screen conversion)
         trail.forEach((t, i) => {
             const alpha = 1 - (i / trail.length);
             ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.2})`;
             ctx.beginPath();
-            ctx.arc(t.x, t.y, t.r * (1 - i/20), 0, Math.PI * 2);
+            ctx.arc(t.wx - state.camX, t.wy - state.camY, t.r * (1 - i/20), 0, Math.PI * 2);
             ctx.fill();
         });
 
+        // Draw entities (world to screen conversion)
         entities.forEach(e => {
+            const sx = e.wx - state.camX;
+            const sy = e.wy - state.camY;
+            
+            // Only draw if on screen (with some padding)
+            if (sx < -100 || sx > state.width + 100 || sy < -100 || sy > state.height + 100) return;
+
             ctx.beginPath();
             if (e.type === 'photon') {
-                ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+                ctx.arc(sx, sy, e.r, 0, Math.PI * 2);
                 ctx.fillStyle = '#fff';
                 ctx.shadowBlur = 20;
                 ctx.shadowColor = '#fff';
                 ctx.fill();
             } else if (e.type === 'eater') {
                 const s = 1 + Math.sin(e.pulse * 2) * 0.2;
-                ctx.arc(e.x, e.y, e.r * s, 0, Math.PI * 2);
+                ctx.arc(sx, sy, e.r * s, 0, Math.PI * 2);
                 ctx.strokeStyle = '#fff';
                 ctx.lineWidth = 4;
                 ctx.stroke();
                 ctx.shadowBlur = 25;
                 ctx.shadowColor = '#fff';
             } else {
-                ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+                ctx.arc(sx, sy, e.r, 0, Math.PI * 2);
                 ctx.fillStyle = '#111';
                 ctx.strokeStyle = '#333';
                 ctx.lineWidth = 2;
@@ -430,31 +511,35 @@
             }
         });
 
+        // Draw particles
         particles.forEach(p => {
             ctx.globalAlpha = Math.max(0, p.life);
             ctx.fillStyle = p.color || '#fff';
             ctx.beginPath();
-            ctx.arc(p.x, p.y, Math.max(0, p.r), 0, Math.PI * 2);
+            ctx.arc(p.wx - state.camX, p.wy - state.camY, Math.max(0, p.r), 0, Math.PI * 2);
             ctx.fill();
         });
         ctx.globalAlpha = 1;
 
+        // Draw player
         if (player.r > 0) {
+            const px = player.worldX - state.camX;
+            const py = player.worldY - state.camY;
+
             ctx.save();
             if (state.powerupTime > 0) {
-                // Adjust pulse based on how much time is left (faster pulse for more time)
                 const ringPulse = Math.sin(Date.now() * 0.01) * 10;
                 ctx.strokeStyle = '#fff';
                 ctx.lineWidth = 6;
-                ctx.shadowBlur = 40 + (state.powerupTime > 20 ? 20 : 0); // extra glow for stacked time
+                ctx.shadowBlur = 40 + (state.powerupTime > 20 ? 20 : 0);
                 ctx.shadowColor = '#fff';
                 ctx.beginPath();
-                ctx.arc(player.x, player.y, player.r + 15 + ringPulse, 0, Math.PI * 2);
+                ctx.arc(px, py, player.r + 15 + ringPulse, 0, Math.PI * 2);
                 ctx.stroke();
                 
                 ctx.globalAlpha = 0.3;
                 ctx.beginPath();
-                ctx.arc(player.x, player.y, player.r + 15 + ringPulse, 0, Math.PI * 2);
+                ctx.arc(px, py, player.r + 15 + ringPulse, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.globalAlpha = 1.0;
             } else {
@@ -464,7 +549,7 @@
             
             ctx.fillStyle = '#fff';
             ctx.beginPath();
-            ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+            ctx.arc(px, py, player.r, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
         }
@@ -472,7 +557,8 @@
         ctx.restore();
     }
 
-    startBtn.onclick = () => {
+    startBtn.onclick = async () => {
+        await Tone.start();
         overlay.classList.add('hidden');
         ui.classList.remove('hidden');
         reset();
