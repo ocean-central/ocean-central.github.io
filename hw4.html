@@ -51,7 +51,7 @@
             font-weight: 700;
         }
 
-        #powerup-ui {
+        .powerup-row {
             margin-top: 10px;
             font-size: 14px;
             font-weight: 700;
@@ -114,7 +114,8 @@
 <div id="ui" class="hidden">
     <div id="score-label">depth</div>
     <div id="score">0</div>
-    <div id="powerup-ui">void eater: <span id="powerup-timer">10</span>s</div>
+    <div id="eater-ui" class="powerup-row">void eater: <span id="eater-timer">0</span>s</div>
+    <div id="speed-ui" class="powerup-row">+ speed: <span id="speed-timer">0</span>s</div>
 </div>
 
 <div id="overlay">
@@ -130,8 +131,12 @@
     const ctx = canvas.getContext('2d');
     const ui = document.getElementById('ui');
     const scoreEl = document.getElementById('score');
-    const powerupUi = document.getElementById('powerup-ui');
-    const powerupTimerEl = document.getElementById('powerup-timer');
+    
+    const eaterUi = document.getElementById('eater-ui');
+    const eaterTimerEl = document.getElementById('eater-timer');
+    const speedUi = document.getElementById('speed-ui');
+    const speedTimerEl = document.getElementById('speed-timer');
+
     const overlay = document.getElementById('overlay');
     const startBtn = document.getElementById('start-btn');
     const title = document.getElementById('title');
@@ -181,7 +186,8 @@
         width: 0,
         height: 0,
         lastTime: 0,
-        powerupTime: 0,
+        powerupTime: 0, // Void Eater
+        speedTime: 0,   // Speed Boost
         camX: 0,
         camY: 0
     };
@@ -204,7 +210,6 @@
 
     function initStars() {
         backgroundStars = [];
-        // Larger area for stars to cover parallax movement
         for (let i = 0; i < 250; i++) {
             backgroundStars.push({
                 x: Math.random() * state.width,
@@ -240,7 +245,6 @@
     window.addEventListener('touchend', () => touch.active = false);
 
     function spawn(type) {
-        // Spawn relative to the current camera view
         const padding = 100;
         const side = Math.floor(Math.random() * 4);
         let wx, wy;
@@ -261,12 +265,12 @@
 
         const angle = Math.atan2(player.worldY - wy, player.worldX - wx) + (Math.random() - 0.5) * 0.4;
         let speed = type === 'photon' ? 1.5 : 2.2;
-        if (type === 'eater') speed = 1.0;
+        if (type === 'eater' || type === 'speeder') speed = 1.0;
 
         entities.push({
             type,
             wx, wy,
-            r: type === 'photon' ? 5 : (type === 'eater' ? 18 : Math.max(4, 8 + Math.random() * 16)),
+            r: type === 'photon' ? 5 : ((type === 'eater' || type === 'speeder') ? 18 : Math.max(4, 8 + Math.random() * 16)),
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
             pulse: 0
@@ -289,6 +293,7 @@
     function reset() {
         state.score = 0;
         state.powerupTime = 0;
+        state.speedTime = 0;
         player.worldX = 0;
         player.worldY = 0;
         state.camX = -state.width / 2;
@@ -300,7 +305,8 @@
         particles = [];
         trail = [];
         scoreEl.innerText = '0';
-        powerupUi.style.opacity = '0';
+        eaterUi.style.opacity = '0';
+        speedUi.style.opacity = '0';
     }
 
     function gameOver() {
@@ -327,7 +333,6 @@
         if (player.keys['ArrowRight'] || player.keys['KeyD']) ax += 1;
 
         if (touch.active) {
-            // Touch relative to player screen position
             const screenPX = player.worldX - state.camX;
             const screenPY = player.worldY - state.camY;
             const dx = touch.x - screenPX;
@@ -336,14 +341,15 @@
             if (dist > 10) { ax = dx / dist; ay = dy / dist; }
         }
 
-        player.vx += ax * 0.8;
-        player.vy += ay * 0.8;
+        // Apply Speed Powerup
+        const moveSpeed = state.speedTime > 0 ? 1.2 : 0.8;
+        player.vx += ax * moveSpeed;
+        player.vy += ay * moveSpeed;
         player.vx *= 0.94; 
         player.vy *= 0.94;
         player.worldX += player.vx;
         player.worldY += player.vy;
 
-        // Camera smoothly follows player
         const targetCamX = player.worldX - state.width / 2;
         const targetCamY = player.worldY - state.height / 2;
         state.camX += (targetCamX - state.camX) * 0.1;
@@ -354,11 +360,21 @@
             if (trail.length > 15) trail.pop();
         }
 
+        // Powerup Timers Logic
         if (state.powerupTime > 0) {
             state.powerupTime -= (16 * dt) / 1000;
-            powerupUi.style.opacity = '1';
-            powerupTimerEl.innerText = Math.max(0, Math.ceil(state.powerupTime));
-            if (state.powerupTime <= 0) powerupUi.style.opacity = '0';
+            eaterUi.style.opacity = '1';
+            eaterTimerEl.innerText = Math.max(0, Math.ceil(state.powerupTime));
+        } else {
+            eaterUi.style.opacity = '0';
+        }
+
+        if (state.speedTime > 0) {
+            state.speedTime -= (16 * dt) / 1000;
+            speedUi.style.opacity = '1';
+            speedTimerEl.innerText = Math.max(0, Math.ceil(state.speedTime));
+        } else {
+            speedUi.style.opacity = '0';
         }
 
         const currentDecay = player.baseDecay + (state.score * 0.000005);
@@ -371,7 +387,11 @@
 
         if (Math.random() < 0.05) spawn('void');
         if (Math.random() < 0.035) spawn('photon');
-        if (Math.random() < 0.0015) spawn('eater');
+        
+        // 50/50 for Void Eater or Speed Burst
+        if (Math.random() < 0.0015) {
+            spawn(Math.random() > 0.5 ? 'eater' : 'speeder');
+        }
 
         for (let i = entities.length - 1; i >= 0; i--) {
             const e = entities[i];
@@ -392,7 +412,14 @@
                     createParticles(e.wx, e.wy, '#fff', 10);
                     sfx.photon();
                 } else if (e.type === 'eater') {
-                    state.powerupTime += 10;
+                    // Nerfed stacking
+                    state.powerupTime = state.powerupTime > 0 ? state.powerupTime + 5 : 10;
+                    state.shake = 35;
+                    createParticles(e.wx, e.wy, '#fff', 30, 2, 12);
+                    sfx.powerup();
+                } else if (e.type === 'speeder') {
+                    // Nerfed stacking
+                    state.speedTime = state.speedTime > 0 ? state.speedTime + 5 : 10;
                     state.shake = 35;
                     createParticles(e.wx, e.wy, '#fff', 30, 2, 12);
                     sfx.powerup();
@@ -423,7 +450,6 @@
                 continue;
             }
 
-            // Cleanup entities too far from camera
             const distToCamX = e.wx - (state.camX + state.width / 2);
             const distToCamY = e.wy - (state.camY + state.height / 2);
             if (Math.abs(distToCamX) > state.width + 500 || Math.abs(distToCamY) > state.height + 500) {
@@ -456,7 +482,6 @@
 
         // Parallax stars
         backgroundStars.forEach(s => {
-            // Wraparound stars based on camera movement
             let sx = (s.x - state.camX * s.z * 0.5) % state.width;
             let sy = (s.y - state.camY * s.z * 0.5) % state.height;
             if (sx < 0) sx += state.width;
@@ -468,7 +493,7 @@
             ctx.fill();
         });
 
-        // Draw trail (world to screen conversion)
+        // Draw trail
         trail.forEach((t, i) => {
             const alpha = 1 - (i / trail.length);
             ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.2})`;
@@ -477,12 +502,10 @@
             ctx.fill();
         });
 
-        // Draw entities (world to screen conversion)
+        // Draw entities
         entities.forEach(e => {
             const sx = e.wx - state.camX;
             const sy = e.wy - state.camY;
-            
-            // Only draw if on screen (with some padding)
             if (sx < -100 || sx > state.width + 100 || sy < -100 || sy > state.height + 100) return;
 
             ctx.beginPath();
@@ -492,12 +515,14 @@
                 ctx.shadowBlur = 20;
                 ctx.shadowColor = '#fff';
                 ctx.fill();
-            } else if (e.type === 'eater') {
+            } else if (e.type === 'eater' || e.type === 'speeder') {
                 const s = 1 + Math.sin(e.pulse * 2) * 0.2;
                 ctx.arc(sx, sy, e.r * s, 0, Math.PI * 2);
                 ctx.strokeStyle = '#fff';
                 ctx.lineWidth = 4;
+                if (e.type === 'speeder') ctx.setLineDash([8, 4]); // Dashed for speed
                 ctx.stroke();
+                ctx.setLineDash([]); // Reset dash
                 ctx.shadowBlur = 25;
                 ctx.shadowColor = '#fff';
             } else {
@@ -527,11 +552,25 @@
             const py = player.worldY - state.camY;
 
             ctx.save();
+            
+            // Speed powerup effect (dashed ring)
+            if (state.speedTime > 0) {
+                const ringPulse = Math.sin(Date.now() * 0.015) * 8;
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 4;
+                ctx.setLineDash([10, 5]);
+                ctx.beginPath();
+                ctx.arc(px, py, player.r + 25 + ringPulse, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Void eater effect (solid ring)
             if (state.powerupTime > 0) {
                 const ringPulse = Math.sin(Date.now() * 0.01) * 10;
                 ctx.strokeStyle = '#fff';
                 ctx.lineWidth = 6;
-                ctx.shadowBlur = 40 + (state.powerupTime > 20 ? 20 : 0);
+                ctx.shadowBlur = 40;
                 ctx.shadowColor = '#fff';
                 ctx.beginPath();
                 ctx.arc(px, py, player.r + 15 + ringPulse, 0, Math.PI * 2);
