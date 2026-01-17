@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tic tac toe - abilities</title>
+    
+    <!-- google sans integration -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- socket.io client -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #1a1a1a;
+            --accent: #8ab4f8;
+            --accent-glow: rgba(138, 180, 248, 0.2);
+            --text: #e8eaed;
+            --text-dim: #9aa0a6;
+            --danger: #f28b82;
+            --success: #81c995;
+            --font: 'Google Sans', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            text-transform: lowercase;
+            font-family: var(--font);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
+        .screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 24px;
+        }
+
+        .hidden { display: none !important; opacity: 0; }
+
+        .card {
+            background: var(--surface);
+            padding: 32px;
+            border-radius: 28px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.08);
+            animation: fadeIn 0.6s ease-out;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+        }
+
+        h1 { font-size: 2.2rem; margin-bottom: 8px; color: var(--accent); letter-spacing: -1px; }
+        p { color: var(--text-dim); margin-bottom: 32px; font-size: 0.95rem; }
+
+        input {
+            width: 100%;
+            padding: 18px;
+            background: #252525;
+            border: 2px solid transparent;
+            border-radius: 16px;
+            color: white;
+            font-size: 1rem;
+            margin-bottom: 20px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        input:focus { border-color: var(--accent); background: #2a2a2a; }
+
+        .btn {
+            background: var(--accent);
+            color: var(--bg);
+            padding: 16px 24px;
+            border-radius: 16px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 100%;
+            font-size: 1rem;
+        }
+        .btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        .btn:active { transform: translateY(0) scale(0.98); }
+        .btn.secondary { background: transparent; border: 1px solid #444; color: var(--text); margin-top: 12px; }
+
+        .loader-ring {
+            width: 54px;
+            height: 54px;
+            border: 4px solid var(--surface);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 24px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .ability-grid {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+            width: 100%;
+        }
+        .ability-card {
+            background: #252525;
+            padding: 16px;
+            border-radius: 18px;
+            text-align: left;
+            border: 2px solid transparent;
+            animation: scaleIn 0.4s ease-out;
+        }
+        .ability-name { display: block; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+        .ability-desc { font-size: 0.85rem; color: var(--text-dim); }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 24px 0;
+        }
+        .cell {
+            width: 90px;
+            height: 90px;
+            background: var(--surface);
+            border-radius: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.4rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+        .cell:hover:not(.taken) { background: #2a2a2a; transform: scale(1.03); }
+        .cell.x { color: var(--accent); }
+        .cell.o { color: var(--danger); }
+        .cell.win { background: var(--success); color: var(--bg); }
+
+        .game-footer {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            max-width: 320px;
+        }
+        .ability-trigger {
+            flex: 1;
+            padding: 12px;
+            background: var(--surface);
+            border: 1px solid #333;
+            border-radius: 14px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .ability-trigger.active { border-color: var(--accent); color: var(--accent); }
+
+        #vfx-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="vfx-canvas"></canvas>
+
+    <div id="screen-start" class="screen">
+        <div class="card">
+            <h1>tic-tac-toe</h1>
+            <p>enhanced abilities edition</p>
+            <input type="text" id="username" placeholder="nickname (3-20 chars)" maxlength="20">
+            <button class="btn" onclick="startQueue()">find match</button>
+        </div>
+    </div>
+
+    <div id="screen-queue" class="screen hidden">
+        <div class="card">
+            <center><div class="loader-ring"></div></center>
+            <h1>searching</h1>
+            <p id="queue-status">matching you with a player...</p>
+            <button class="btn secondary" onclick="cancelQueue()">leave queue</button>
+        </div>
+    </div>
+
+    <div id="screen-draft" class="screen hidden">
+        <div class="card">
+            <h1>your abilities</h1>
+            <p id="draft-subtitle">rolled 3 unique perks</p>
+            <div class="ability-grid" id="draft-grid"></div>
+            <p style="margin-bottom: 12px; font-size: 0.8rem;" id="reroll-text">rerolls left: 1</p>
+            <button class="btn" onclick="confirmDraft()">confirm loadout</button>
+            <button class="btn secondary" id="reroll-btn" onclick="rerollAbilities()">reroll</button>
+        </div>
+    </div>
+
+    <div id="screen-game" class="screen hidden">
+        <div style="display:flex; justify-content:space-between; width: 320px; margin-bottom: 16px;">
+            <div id="p1-ui" style="text-align:left">
+                <div id="p1-label" style="font-weight:700">you (x)</div>
+                <div id="p1-score" style="font-size:0.8rem; color:var(--text-dim)">wins: 0</div>
+            </div>
+            <div id="p2-ui" style="text-align:right">
+                <div id="p2-label" style="font-weight:700; color:var(--danger)">opponent (o)</div>
+                <div id="p2-score" style="font-size:0.8rem; color:var(--text-dim)">wins: 0</div>
+            </div>
+        </div>
+
+        <div id="game-prompt" style="font-size:0.9rem; margin-bottom: 12px; color:var(--accent); animation: pulse 2s infinite">your turn</div>
+
+        <div class="board" id="board">
+            <div class="cell" data-idx="0"></div>
+            <div class="cell" data-idx="1"></div>
+            <div class="cell" data-idx="2"></div>
+            <div class="cell" data-idx="3"></div>
+            <div class="cell" data-idx="4"></div>
+            <div class="cell" data-idx="5"></div>
+            <div class="cell" data-idx="6"></div>
+            <div class="cell" data-idx="7"></div>
+            <div class="cell" data-idx="8"></div>
+        </div>
+
+        <div class="game-footer" id="ability-bar"></div>
+    </div>
+
+    <script>
+        const abilitiesPool = [
+            { id: 'freeze', name: 'frost', desc: 'opponent skips their next turn.' },
+            { id: 'scramble', name: 'scramble', desc: 'randomly shuffle all marks on the board.' },
+            { id: 'void', name: 'void', desc: 'remove any one mark from the board.' },
+            { id: 'haste', name: 'haste', desc: 'take an additional turn immediately.' },
+            { id: 'echo', name: 'echo', desc: 'your next move places two marks.' },
+            { id: 'glitch', name: 'glitch', desc: 'swap all X marks with O marks.' },
+            { id: 'aegis', name: 'aegis', desc: 'protect your next mark from deletion.' },
+            { id: 'vision', name: 'oracle', desc: 'highlights the best move for 1 turn.' },
+            { id: 'meteor', name: 'meteor', desc: 'clears a random row or column.' },
+            { id: 'fortify', name: 'fortify', desc: 'prevents opponent abilities for 2 turns.' }
+        ];
+
+        let state = {
+            username: "",
+            opponent: "bot",
+            myAbilities: [],
+            rerolls: 1,
+            board: Array(9).fill(null),
+            isMyTurn: false,
+            wins: 0,
+            opWins: 0,
+            mySymbol: 'x',
+            opSymbol: 'o',
+            activeAbilityIdx: null,
+            socket: null,
+            room: null
+        };
+
+        const serverUrl = "https://tic-tac-toe-d8v4.onrender.com/";
+
+        function show(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function startQueue() {
+            const val = document.getElementById('username').value.trim();
+            if (val.length < 3) return;
+            state.username = val;
+            show('screen-queue');
+
+            state.socket = io(serverUrl);
+
+            state.socket.on('connect', () => {
+                state.socket.emit('join-queue', state.username);
+            });
+
+            state.socket.on('match-found', (data) => {
+                state.opponent = data.opponent;
+                state.room = data.room;
+                state.mySymbol = data.symbol;
+                state.opSymbol = data.symbol === 'x' ? 'o' : 'x';
+                
+                document.getElementById('queue-status').innerText = `matched with ${state.opponent}`;
+                setTimeout(setupDraft, 1200);
+            });
+        }
+
+        function cancelQueue() {
+            if (state.socket) state.socket.disconnect();
+            show('screen-start');
+        }
+
+        function setupDraft() {
+            rollAbilities();
+            show('screen-draft');
+        }
+
+        function rollAbilities() {
+            const shuffled = [...abilitiesPool].sort(() => 0.5 - Math.random());
+            state.myAbilities = shuffled.slice(0, 3).map(a => ({...a, used: false}));
+            renderDraft();
+        }
+
+        function renderDraft() {
+            const grid = document.getElementById('draft-grid');
+            grid.innerHTML = '';
+            state.myAbilities.forEach(a => {
+                grid.innerHTML += `
+                    <div class="ability-card">
+                        <span class="ability-name">${a.name}</span>
+                        <span class="ability-desc">${a.desc}</span>
+                    </div>
+                `;
+            });
+            document.getElementById('reroll-text').innerText = `rerolls left: ${state.rerolls}`;
+            document.getElementById('reroll-btn').disabled = state.rerolls <= 0;
+        }
+
+        function rerollAbilities() {
+            if (state.rerolls > 0) {
+                state.rerolls--;
+                rollAbilities();
+            }
+        }
+
+        function confirmDraft() {
+            initMatch();
+            show('screen-game');
+        }
+
+        function initMatch() {
+            state.board = Array(9).fill(null);
+            state.isMyTurn = state.mySymbol === 'x';
+            document.getElementById('p1-label').innerText = `${state.username} (${state.mySymbol})`;
+            document.getElementById('p2-label').innerText = `${state.opponent} (${state.opSymbol})`;
+            renderBoard();
+            renderAbilityBar();
+            updateGameStatus();
+        }
+
+        function renderBoard() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, i) => {
+                const mark = state.board[i];
+                cell.innerText = mark || '';
+                cell.className = `cell ${mark ? 'taken ' + mark : ''}`;
+                cell.onclick = (e) => handleCellClick(i, e);
+            });
+        }
+
+        function renderAbilityBar() {
+            const bar = document.getElementById('ability-bar');
+            bar.innerHTML = '';
+            state.myAbilities.forEach((a, i) => {
+                const b = document.createElement('button');
+                b.className = `ability-trigger ${state.activeAbilityIdx === i ? 'active' : ''}`;
+                b.innerText = a.name;
+                b.disabled = a.used || !state.isMyTurn;
+                b.onclick = () => {
+                    state.activeAbilityIdx = (state.activeAbilityIdx === i) ? null : i;
+                    renderAbilityBar();
+                };
+                bar.appendChild(b);
+            });
+        }
+
+        function handleCellClick(i, e) {
+            if (!state.isMyTurn || state.board[i]) return;
+
+            // Simplified: for now we mark locally. 
+            // Real production would emit 'move' to socket here.
+            state.board[i] = state.mySymbol;
+            spawnRipple(e.clientX, e.clientY);
+            checkGameState();
+        }
+
+        function checkGameState() {
+            renderBoard();
+            const win = checkWin(state.board);
+            if (win) return endRound(win === state.mySymbol ? 'me' : 'op');
+            if (!state.board.includes(null)) return endRound('draw');
+
+            state.isMyTurn = !state.isMyTurn;
+            updateGameStatus();
+            renderAbilityBar();
+        }
+
+        function updateGameStatus() {
+            const prompt = document.getElementById('game-prompt');
+            prompt.innerText = state.isMyTurn ? "your turn" : `${state.opponent}'s turn`;
+            prompt.style.color = state.isMyTurn ? "var(--accent)" : "var(--danger)";
+        }
+
+        function checkWin(b) {
+            const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            for (let l of lines) {
+                if (b[l[0]] && b[l[0]] === b[l[1]] && b[l[0]] === b[l[2]]) return b[l[0]];
+            }
+            return null;
+        }
+
+        function endRound(result) {
+            if (result === 'me') state.wins++;
+            if (result === 'op') state.opWins++;
+            
+            document.getElementById('p1-score').innerText = `wins: ${state.wins}`;
+            document.getElementById('p2-score').innerText = `wins: ${state.opWins}`;
+
+            setTimeout(() => {
+                if (state.wins >= 2 || state.opWins >= 2) {
+                    alert(state.wins >= 2 ? "you won the match!" : "opponent won the match.");
+                    location.reload();
+                } else {
+                    initMatch();
+                }
+            }, 1500);
+        }
+
+        function spawnRipple(x, y) {
+            const canvas = document.getElementById('vfx-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            let r = 0;
+            const animate = () => {
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(138, 180, 248, ${1 - r/100})`;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                r += 4;
+                if (r < 100) requestAnimationFrame(animate);
+            };
+            animate();
+        }
+    </script>
+</body>
+</html>
