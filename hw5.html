@@ -18,7 +18,6 @@
             --bg: #0a0a0a;
             --surface: #1a1a1a;
             --accent: #8ab4f8;
-            --accent-glow: rgba(138, 180, 248, 0.2);
             --text: #e8eaed;
             --text-dim: #9aa0a6;
             --danger: #f28b82;
@@ -27,22 +26,15 @@
         }
 
         * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            text-transform: lowercase;
-            font-family: var(--font);
+            margin: 0; padding: 0; box-sizing: border-box;
+            text-transform: lowercase; font-family: var(--font);
             -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            background-color: var(--bg);
-            color: var(--text);
-            overflow: hidden;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background-color: var(--bg); color: var(--text);
+            overflow: hidden; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
         }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
@@ -51,23 +43,17 @@
         @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
         .screen {
-            position: absolute;
-            width: 100%; height: 100%;
+            position: absolute; width: 100%; height: 100%;
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
-            transition: all 0.5s ease;
-            padding: 24px;
+            transition: all 0.5s ease; padding: 24px;
         }
 
         .hidden { display: none !important; }
 
         .card {
-            background: var(--surface);
-            padding: 32px;
-            border-radius: 28px;
-            width: 100%;
-            max-width: 420px;
-            text-align: center;
+            background: var(--surface); padding: 32px; border-radius: 28px;
+            width: 100%; max-width: 420px; text-align: center;
             border: 1px solid rgba(255,255,255,0.08);
             animation: fadeIn 0.6s ease-out;
         }
@@ -76,60 +62,59 @@
         p { color: var(--text-dim); margin-bottom: 32px; font-size: 0.95rem; }
 
         input {
-            width: 100%;
-            padding: 18px;
-            background: #252525;
-            border: 2px solid transparent;
-            border-radius: 16px;
-            color: white;
-            font-size: 1rem;
-            margin-bottom: 20px;
-            outline: none;
+            width: 100%; padding: 18px; background: #252525;
+            border: 2px solid transparent; border-radius: 16px;
+            color: white; font-size: 1rem; margin-bottom: 20px; outline: none;
         }
         input:focus { border-color: var(--accent); }
 
         .btn {
-            background: var(--accent);
-            color: var(--bg);
-            padding: 16px 24px;
-            border-radius: 16px;
-            border: none;
-            font-weight: 700;
-            cursor: pointer;
-            width: 100%;
+            background: var(--accent); color: var(--bg);
+            padding: 16px 24px; border-radius: 16px;
+            border: none; font-weight: 700; cursor: pointer; width: 100%;
         }
+
+        .ability-grid {
+            display: grid; grid-template-columns: 1fr; gap: 12px;
+            margin-bottom: 24px; width: 100%;
+        }
+        .ability-card {
+            background: #252525; padding: 16px; border-radius: 18px; text-align: left;
+        }
+        .ability-name { display: block; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+        .ability-desc { font-size: 0.85rem; color: var(--text-dim); }
+
+        .board {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 12px; margin: 24px 0;
+        }
+        .cell {
+            width: 90px; height: 90px; background: var(--surface);
+            border-radius: 20px; display: flex; justify-content: center;
+            align-items: center; font-size: 2.4rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+        .cell.x { color: var(--accent); }
+        .cell.o { color: var(--danger); }
 
         #toast-container {
-            position: fixed;
-            top: 24px;
-            right: 24px;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            position: fixed; top: 24px; right: 24px; z-index: 1000;
+            display: flex; flex-direction: column; gap: 12px;
         }
-
         .toast {
-            background: #2d2d2d;
-            border-left: 4px solid var(--danger);
-            color: var(--text);
-            padding: 16px 20px;
-            border-radius: 12px;
-            min-width: 280px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-            animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            background: #2d2d2d; border-left: 4px solid var(--danger);
+            color: var(--text); padding: 16px 20px; border-radius: 12px;
+            min-width: 280px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            animation: slideIn 0.4s forwards;
         }
-        .toast.hide { animation: slideOut 0.4s ease-in forwards; }
-        .toast-title { display: block; font-weight: 700; color: var(--danger); margin-bottom: 4px; }
+        .toast.hide { animation: slideOut 0.4s forwards; }
         .toast-debug { display: block; font-size: 0.7rem; color: var(--text-dim); margin-top: 8px; font-family: monospace; }
         
         .loader-ring {
-            width: 54px; height: 54px;
-            border: 4px solid var(--surface);
-            border-top: 4px solid var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 24px;
+            width: 54px; height: 54px; border: 4px solid var(--surface);
+            border-top: 4px solid var(--accent); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 24px;
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
     </style>
@@ -138,6 +123,7 @@
 
     <div id="toast-container"></div>
 
+    <!-- Start Screen -->
     <div id="screen-start" class="screen">
         <div class="card">
             <h1>tic-tac-toe</h1>
@@ -147,6 +133,7 @@
         </div>
     </div>
 
+    <!-- Queue Screen -->
     <div id="screen-queue" class="screen hidden">
         <div class="card">
             <center id="queue-loader"><div class="loader-ring"></div></center>
@@ -156,10 +143,58 @@
         </div>
     </div>
 
+    <!-- Draft Screen -->
+    <div id="screen-draft" class="screen hidden">
+        <div class="card">
+            <h1>your abilities</h1>
+            <p>rolled 3 random perks</p>
+            <div class="ability-grid" id="draft-grid"></div>
+            <button class="btn" onclick="confirmDraft()">confirm loadout</button>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="screen-game" class="screen hidden">
+        <div style="display:flex; justify-content:space-between; width: 320px; margin-bottom: 16px;">
+            <div id="p1-label" style="font-weight:700">you (x)</div>
+            <div id="p2-label" style="font-weight:700; color:var(--danger)">opponent (o)</div>
+        </div>
+
+        <div id="game-prompt" style="font-size:0.9rem; margin-bottom: 12px; color:var(--accent); animation: pulse 2s infinite">your turn</div>
+
+        <div class="board" id="board">
+            <div class="cell" data-idx="0"></div>
+            <div class="cell" data-idx="1"></div>
+            <div class="cell" data-idx="2"></div>
+            <div class="cell" data-idx="3"></div>
+            <div class="cell" data-idx="4"></div>
+            <div class="cell" data-idx="5"></div>
+            <div class="cell" data-idx="6"></div>
+            <div class="cell" data-idx="7"></div>
+            <div class="cell" data-idx="8"></div>
+        </div>
+
+        <div id="ability-bar" style="display:flex; gap:8px; width:320px;"></div>
+    </div>
+
     <script>
+        const abilitiesPool = [
+            { id: 'freeze', name: 'frost', desc: 'opponent skips their next turn.' },
+            { id: 'void', name: 'void', desc: 'remove any one mark from the board.' },
+            { id: 'haste', name: 'haste', desc: 'take an additional turn immediately.' }
+        ];
+
         let state = {
             socket: null,
-            queueTimer: null
+            queueTimer: null,
+            username: "",
+            opponent: "",
+            room: null,
+            mySymbol: 'x',
+            opSymbol: 'o',
+            board: Array(9).fill(null),
+            isMyTurn: false,
+            myAbilities: []
         };
 
         const serverUrl = "https://tic-tac-toe-d8v4.onrender.com/";
@@ -168,57 +203,115 @@
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = 'toast';
-            toast.innerHTML = `
-                <span class="toast-title">${title}</span>
-                <span>${message}</span>
-                ${debugInfo ? `<span class="toast-debug">LOG: ${debugInfo}</span>` : ''}
-            `;
+            toast.innerHTML = `<span class="toast-title">${title}</span><span>${message}</span>${debugInfo ? `<span class="toast-debug">LOG: ${debugInfo}</span>` : ''}`;
             container.appendChild(toast);
-            setTimeout(() => {
-                toast.classList.add('hide');
-                setTimeout(() => toast.remove(), 500);
-            }, 7000);
+            setTimeout(() => { toast.classList.add('hide'); setTimeout(() => toast.remove(), 500); }, 5000);
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
         }
 
         function startQueue() {
-            const user = document.getElementById('username').value.trim();
-            if (user.length < 3) return;
+            state.username = document.getElementById('username').value.trim();
+            if (state.username.length < 3) return;
 
-            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-            document.getElementById('screen-queue').classList.remove('hidden');
+            showScreen('screen-queue');
 
-            // 1 minute 30 second timer
             state.queueTimer = setTimeout(() => {
                 document.getElementById('queue-loader').classList.add('hidden');
                 document.getElementById('queue-header').innerText = "empty lobby";
                 document.getElementById('queue-status').innerText = "no one is playing currently";
             }, 90000);
 
-            // Connection Logic
-            state.socket = io(serverUrl, {
-                transports: ['websocket', 'polling'],
-                reconnectionAttempts: 5
-            });
+            state.socket = io(serverUrl, { transports: ['websocket', 'polling'] });
 
             state.socket.on('connect', () => {
-                state.socket.emit('join-queue', user);
+                state.socket.emit('join-queue', state.username);
             });
 
             state.socket.on('connect_error', (err) => {
-                const debug = `Type: ${err.type} | Msg: ${err.message}`;
-                showToast("Connection Error", "Check your internet or wait for server wake-up.", debug);
+                showToast("Connection Error", "Server is likely waking up.", err.message);
             });
 
             state.socket.on('match-found', (data) => {
                 clearTimeout(state.queueTimer);
-                document.getElementById('queue-status').innerText = `Match found! vs ${data.opponent}`;
-                // Future game logic would trigger here
+                state.opponent = data.opponent;
+                state.room = data.room;
+                state.mySymbol = data.symbol;
+                state.opSymbol = data.symbol === 'x' ? 'o' : 'x';
+                state.isMyTurn = state.mySymbol === 'x';
+                
+                // Roll Abilities
+                state.myAbilities = [...abilitiesPool].sort(() => 0.5 - Math.random()).slice(0, 3);
+                
+                const grid = document.getElementById('draft-grid');
+                grid.innerHTML = '';
+                state.myAbilities.forEach(a => {
+                    grid.innerHTML += `<div class="ability-card"><span class="ability-name">${a.name}</span><span class="ability-desc">${a.desc}</span></div>`;
+                });
+
+                showScreen('screen-draft');
             });
+
+            // Handle Moves from Opponent
+            state.socket.on('move-made', (data) => {
+                state.board[data.index] = state.symbol === 'x' ? 'o' : 'x';
+                state.isMyTurn = true;
+                renderBoard();
+                updatePrompt();
+            });
+        }
+
+        function confirmDraft() {
+            showScreen('screen-game');
+            document.getElementById('p1-label').innerText = `you (${state.mySymbol})`;
+            document.getElementById('p2-label').innerText = `${state.opponent} (${state.opSymbol})`;
+            
+            const bar = document.getElementById('ability-bar');
+            bar.innerHTML = '';
+            state.myAbilities.forEach(a => {
+                bar.innerHTML += `<button class="btn" style="padding:10px; font-size:0.7rem;">${a.name}</button>`;
+            });
+
+            renderBoard();
+            updatePrompt();
+        }
+
+        function renderBoard() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, i) => {
+                const mark = state.board[i];
+                cell.innerText = mark || '';
+                cell.className = `cell ${mark || ''}`;
+                cell.onclick = () => handleMove(i);
+            });
+        }
+
+        function handleMove(i) {
+            if (!state.isMyTurn || state.board[i]) return;
+            
+            state.board[i] = state.mySymbol;
+            state.isMyTurn = false;
+            renderBoard();
+            updatePrompt();
+
+            state.socket.emit('make-move', {
+                room: state.room,
+                index: i,
+                symbol: state.mySymbol
+            });
+        }
+
+        function updatePrompt() {
+            const p = document.getElementById('game-prompt');
+            p.innerText = state.isMyTurn ? "your turn" : `${state.opponent}'s turn`;
+            p.style.color = state.isMyTurn ? "var(--accent)" : "var(--danger)";
         }
 
         function cancelQueue() {
             if (state.socket) state.socket.disconnect();
-            clearTimeout(state.queueTimer);
             location.reload();
         }
     </script>
