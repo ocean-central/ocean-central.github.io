@@ -28,21 +28,26 @@
         * { margin: 0; padding: 0; box-sizing: border-box; text-transform: lowercase; font-family: var(--font); }
         body { background-color: var(--bg); color: var(--text); overflow: hidden; height: 100vh; display: flex; justify-content: center; align-items: center; }
 
-        .screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 24px; transition: 0.5s; }
+        .screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 24px; transition: 0.5s; z-index: 10; }
         .hidden { display: none !important; }
 
-        .card { background: var(--surface); padding: 32px; border-radius: 28px; width: 100%; max-width: 440px; text-align: center; border: 1px solid rgba(255,255,255,0.08); animation: fadeIn 0.6s ease-out; }
+        .card { background: var(--surface); padding: 32px; border-radius: 28px; width: 100%; max-width: 420px; text-align: center; border: 1px solid rgba(255,255,255,0.08); animation: fadeIn 0.6s ease-out; position: relative; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
-        input { width: 100%; padding: 18px; background: #252525; border: 2px solid transparent; border-radius: 16px; color: white; margin-bottom: 20px; outline: none; }
+        .player-count-container { margin-bottom: 24px; }
+        .count-num { font-size: 2.5rem; font-weight: 700; color: var(--accent); display: block; line-height: 1; }
+        .count-label { color: var(--text-dim); font-size: 0.8rem; letter-spacing: 1px; }
+
+        input { width: 100%; padding: 18px; background: #252525; border: 2px solid transparent; border-radius: 16px; color: white; margin-bottom: 20px; outline: none; transition: 0.3s; }
         input:focus { border-color: var(--accent); }
 
         .btn { background: var(--accent); color: var(--bg); padding: 16px; border-radius: 16px; border: none; font-weight: 700; cursor: pointer; width: 100%; transition: 0.2s; }
         .btn:disabled { opacity: 0.3; cursor: not-allowed; }
         .btn-sec { background: transparent; border: 1px solid #444; color: white; margin-top: 10px; }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
 
         .ability-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; max-height: 350px; overflow-y: auto; padding-right: 5px; }
-        .ability-card { background: #252525; padding: 14px; border-radius: 16px; text-align: left; border-left: 4px solid var(--common); }
+        .ability-card { background: #252525; padding: 14px; border-radius: 16px; text-align: left; border-left: 4px solid var(--common); transition: 0.3s; }
         .ability-card.rare { border-left-color: var(--rare); }
         .ability-card.legendary { border-left-color: var(--legendary); }
         .rarity-tag { font-size: 0.65rem; font-weight: 700; opacity: 0.8; margin-bottom: 2px; display: block; }
@@ -50,24 +55,35 @@
         .ability-desc { font-size: 0.8rem; color: var(--text-dim); display: block; margin-top: 2px; }
 
         .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
-        .cell { width: 95px; height: 95px; background: var(--surface); border-radius: 20px; display: flex; justify-content: center; align-items: center; font-size: 2.5rem; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,0.03); }
+        .cell { width: 95px; height: 95px; background: var(--surface); border-radius: 20px; display: flex; justify-content: center; align-items: center; font-size: 2.5rem; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,0.03); transition: 0.2s; }
+        .cell:hover:not(.taken) { background: #222; }
         .cell.x { color: var(--accent); }
         .cell.o { color: var(--danger); }
+        .cell.win { background: var(--accent); color: var(--bg); }
 
-        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 100; }
-        .toast { background: #333; padding: 12px 20px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid var(--accent); animation: slideIn 0.3s; }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 100; pointer-events: none; }
+        .toast { background: #333; padding: 12px 20px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid var(--accent); animation: slideIn 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
         
         .loader { width: 40px; height: 40px; border: 4px solid #333; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s infinite linear; margin: 20px auto; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        .ability-bar-btn { flex: 1; padding: 10px; font-size: 0.65rem; font-weight: 700; border-radius: 12px; border: 1px solid #333; cursor: pointer; background: #252525; color: white; transition: 0.2s; white-space: nowrap; }
+        .ability-bar-btn:disabled { opacity: 0.2; }
+        .ability-bar-btn.active { border-color: var(--accent); box-shadow: 0 0 10px var(--accent); }
     </style>
 </head>
 <body>
 
     <div class="toast-container" id="toasts"></div>
 
+    <!-- Start Screen -->
     <div id="screen-start" class="screen">
         <div class="card">
+            <div class="player-count-container">
+                <span class="count-num" id="online-count">--</span>
+                <span class="count-label">online players</span>
+            </div>
             <h1>tic-tac-toe</h1>
             <p>30+ abilities & rarities</p>
             <input type="text" id="username" placeholder="enter nickname" maxlength="15">
@@ -75,6 +91,7 @@
         </div>
     </div>
 
+    <!-- Queue Screen -->
     <div id="screen-queue" class="screen hidden">
         <div class="card">
             <div class="loader"></div>
@@ -84,6 +101,7 @@
         </div>
     </div>
 
+    <!-- Draft Screen -->
     <div id="screen-draft" class="screen hidden">
         <div class="card">
             <h1 id="draft-title">your loadout</h1>
@@ -94,6 +112,7 @@
         </div>
     </div>
 
+    <!-- Game Screen -->
     <div id="screen-game" class="screen hidden">
         <div style="display:flex; justify-content:space-between; width: 310px; margin-bottom: 10px;">
             <div id="p1-info" style="font-weight:700">you (x)</div>
@@ -101,56 +120,66 @@
         </div>
         <div id="game-prompt" style="font-weight:700; color:var(--accent); margin-bottom: 15px;">your turn</div>
         <div class="board" id="board">
-            <div class="cell" onclick="makeMove(0)"></div>
-            <div class="cell" onclick="makeMove(1)"></div>
-            <div class="cell" onclick="makeMove(2)"></div>
-            <div class="cell" onclick="makeMove(3)"></div>
-            <div class="cell" onclick="makeMove(4)"></div>
-            <div class="cell" onclick="makeMove(5)"></div>
-            <div class="cell" onclick="makeMove(6)"></div>
-            <div class="cell" onclick="makeMove(7)"></div>
-            <div class="cell" onclick="makeMove(8)"></div>
+            <div class="cell" onclick="handleInput(0)"></div>
+            <div class="cell" onclick="handleInput(1)"></div>
+            <div class="cell" onclick="handleInput(2)"></div>
+            <div class="cell" onclick="handleInput(3)"></div>
+            <div class="cell" onclick="handleInput(4)"></div>
+            <div class="cell" onclick="handleInput(5)"></div>
+            <div class="cell" onclick="handleInput(6)"></div>
+            <div class="cell" onclick="handleInput(7)"></div>
+            <div class="cell" onclick="handleInput(8)"></div>
         </div>
-        <div id="ability-bar" style="display:flex; gap:8px; width:310px; overflow-x:auto;"></div>
+        <div id="ability-bar" style="display:flex; gap:8px; width:310px;"></div>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="screen-result" class="screen hidden">
+        <div class="card">
+            <h1 id="result-title">victory</h1>
+            <p id="result-desc">you outplayed your opponent</p>
+            <button class="btn" onclick="startQueue()">find new match</button>
+            <button class="btn btn-sec" onclick="location.reload()">main menu</button>
+        </div>
     </div>
 
     <script>
-        const abilities = {
+        const abilitiesData = {
             common: [
-                { id: 'c1', name: 'nudge', desc: 'move an existing mark one slot.' },
-                { id: 'c2', name: 'peek', desc: 'see what your opponent rolled.' },
-                { id: 'c3', name: 'shield', desc: 'protect one slot from being wiped.' },
+                { id: 'c1', name: 'nudge', desc: 'move a random mark to an empty neighbor.' },
+                { id: 'c2', name: 'peek', desc: 'highlights empty spots for 3s.' },
+                { id: 'c3', name: 'shield', desc: 'blocks the next ability used against you.' },
                 { id: 'c4', name: 'dust', desc: 'clear a random empty slot.' },
-                { id: 'c5', name: 'ping', desc: 'highlights a random corner.' },
-                { id: 'c6', name: 'slow', desc: 'opponent turn timer reduced next round.' },
-                { id: 'c7', name: 'spark', desc: 'add a glow to your next mark.' },
-                { id: 'c8', name: 'echo', desc: 'repeat your last chat message.' },
-                { id: 'c9', name: 'gift', desc: 'give opponent a common ability (wait why?)' },
-                { id: 'c10', name: 'blink', desc: 'briefly hide the board.' }
+                { id: 'c5', name: 'ping', desc: 'highlights corners for 2s.' },
+                { id: 'c6', name: 'echo', desc: 'send a "hello" toast to opponent.' },
+                { id: 'c7', name: 'spark', desc: 'next mark flashes for 3s.' },
+                { id: 'c8', name: 'luck', desc: 'rerolls a used ability slot.' },
+                { id: 'c9', name: 'blink', desc: 'hides the board for 1s.' },
+                { id: 'c10', name: 'scout', desc: 'shows opponent nickname bigger.' }
             ],
             rare: [
-                { id: 'r1', name: 'frost', desc: 'opponent skips 1 turn.' },
-                { id: 'r2', name: 'void', desc: 'remove 1 mark from the board.' },
-                { id: 'r3', name: 'haste', desc: 'take 2 turns this round.' },
-                { id: 'r4', name: 'swap', desc: 'swap positions of two marks.' },
-                { id: 'r5', name: 'veil', desc: 'hide your next move for 1 turn.' },
-                { id: 'r6', name: 'leech', desc: 'steal a random ability from enemy.' },
-                { id: 'r7', name: 'scramble', desc: 'shuffle all current marks.' },
-                { id: 'r8', name: 'magnet', desc: 'pull all marks toward the center.' },
-                { id: 'r9', name: 'infect', desc: 'your next mark spreads to a neighbor.' },
-                { id: 'r10', name: 'barrier', desc: 'block a row for 1 turn.' }
+                { id: 'r1', name: 'frost', desc: 'opponent skips their next turn.' },
+                { id: 'r2', name: 'void', desc: 'remove any 1 mark from the board.' },
+                { id: 'r3', name: 'haste', desc: 'take 1 extra turn right now.' },
+                { id: 'r4', name: 'swap', desc: 'swap two random marks on board.' },
+                { id: 'r5', name: 'scramble', desc: 'randomize all marks currently placed.' },
+                { id: 'r6', name: 'leech', desc: 'steals opponent next turn timer.' },
+                { id: 'r7', name: 'magnet', desc: 'pulls outside marks to center if empty.' },
+                { id: 'r8', name: 'infect', desc: 'your next move deletes a random neighbor.' },
+                { id: 'r9', name: 'barrier', desc: 'prevent moves in center for 1 turn.' },
+                { id: 'r10', name: 'clone', desc: 'copies your last move to a random spot.' }
             ],
             legendary: [
-                { id: 'l1', name: 'supernova', desc: 'clear the entire board.' },
-                { id: 'l2', name: 'mimic', desc: 'copy the last move made.' },
-                { id: 'l3', name: 'rewind', desc: 'undo the last 2 moves.' },
-                { id: 'l4', name: 'glitch', desc: 'convert all O to X (or vice versa).' },
-                { id: 'l5', name: 'meteor', desc: 'wipe a random row instantly.' },
-                { id: 'l6', name: 'dragon', desc: 'fill 2 random slots with your mark.' },
-                { id: 'l7', name: 'overdrive', desc: 'abilities cost no charges this turn.' },
-                { id: 'l8', name: 'vortex', desc: 'suck all O marks into one corner.' },
-                { id: 'l9', name: 'immortal', desc: 'your marks cannot be removed ever.' },
-                { id: 'l10', name: 'judgment', desc: 'win instantly if you have 2 in a row.' }
+                { id: 'l1', name: 'supernova', desc: 'wipe the entire board clean.' },
+                { id: 'l2', name: 'glitch', desc: 'flip all X marks to O and O to X.' },
+                { id: 'l3', name: 'rewind', desc: 'undo the last move made.' },
+                { id: 'l4', name: 'meteor', desc: 'delete a whole random row.' },
+                { id: 'l5', name: 'dragon', desc: 'place 2 marks at once next turn.' },
+                { id: 'l6', name: 'vortex', desc: 'moves all enemy marks to edges.' },
+                { id: 'l7', name: 'immortal', desc: 'your marks cannot be deleted.' },
+                { id: 'l8', name: 'mimic', desc: 'use the last ability opponent used.' },
+                { id: 'l9', name: 'overdrive', desc: 'instantly take 2 turns and wipe 1 mark.' },
+                { id: 'l10', name: 'judgment', desc: 'if you have 2 in a row, win instantly.' }
             ]
         };
 
@@ -164,18 +193,27 @@
             isMyTurn: false,
             board: Array(9).fill(null),
             rerolls: 3,
-            myAbilities: []
+            myAbilities: [],
+            activeAbility: null,
+            usedAbilities: new Set()
         };
 
         const serverUrl = "https://tic-tac-toe-d8v4.onrender.com/";
 
-        function toast(msg) {
+        // Initialize Player Count
+        const tempSocket = io(serverUrl, { transports: ['websocket', 'polling'] });
+        tempSocket.on('player-count', (count) => {
+            document.getElementById('online-count').innerText = count;
+        });
+
+        function toast(msg, type = 'accent') {
             const t = document.getElementById('toasts');
             const d = document.createElement('div');
             d.className = 'toast';
+            d.style.borderLeftColor = `var(--${type})`;
             d.innerText = msg;
             t.appendChild(d);
-            setTimeout(() => d.remove(), 4000);
+            setTimeout(() => { d.style.opacity = '0'; setTimeout(() => d.remove(), 400); }, 3000);
         }
 
         function switchScreen(id) {
@@ -188,10 +226,10 @@
             if (state.username.length < 2) return toast("name too short");
             
             switchScreen('screen-queue');
-            state.socket = io(serverUrl, { transports: ['websocket', 'polling'] });
+            if (!state.socket) state.socket = io(serverUrl, { transports: ['websocket', 'polling'] });
 
-            state.socket.on('connect', () => state.socket.emit('join-queue', state.username));
-            state.socket.on('connect_error', () => toast("connecting..."));
+            state.socket.off(); // Clear listeners
+            state.socket.emit('join-queue', state.username);
 
             state.socket.on('match-found', (data) => {
                 state.opponent = data.opponent;
@@ -199,6 +237,9 @@
                 state.mySymbol = data.symbol;
                 state.opSymbol = data.symbol === 'x' ? 'o' : 'x';
                 state.isMyTurn = state.mySymbol === 'x';
+                state.board = Array(9).fill(null);
+                state.usedAbilities.clear();
+                state.rerolls = 3;
                 generateLoadout();
                 switchScreen('screen-draft');
             });
@@ -206,16 +247,22 @@
             state.socket.on('move-made', (data) => {
                 state.board[data.index] = data.symbol;
                 state.isMyTurn = true;
-                updateBoard();
+                checkWinCondition();
+                updateUI();
+            });
+
+            state.socket.on('ability-used', (data) => {
+                applyAbilityEffect(data.abilityId, false);
+                toast(`${state.opponent} used ${data.abilityName}!`, 'danger');
             });
         }
 
         function generateLoadout() {
             const roll = () => {
                 const r = Math.random();
-                if (r > 0.9) return { ...abilities.legendary[Math.floor(Math.random()*10)], rarity: 'legendary' };
-                if (r > 0.6) return { ...abilities.rare[Math.floor(Math.random()*10)], rarity: 'rare' };
-                return { ...abilities.common[Math.floor(Math.random()*10)], rarity: 'common' };
+                if (r > 0.9) return { ...abilitiesData.legendary[Math.floor(Math.random()*10)], rarity: 'legendary' };
+                if (r > 0.65) return { ...abilitiesData.rare[Math.floor(Math.random()*10)], rarity: 'rare' };
+                return { ...abilitiesData.common[Math.floor(Math.random()*10)], rarity: 'common' };
             };
             state.myAbilities = [roll(), roll(), roll()];
             renderDraft();
@@ -248,38 +295,142 @@
             switchScreen('screen-game');
             document.getElementById('p1-info').innerText = `you (${state.mySymbol})`;
             document.getElementById('p2-info').innerText = `${state.opponent} (${state.opSymbol})`;
-            
+            renderAbilityBar();
+            updateUI();
+        }
+
+        function renderAbilityBar() {
             const bar = document.getElementById('ability-bar');
             bar.innerHTML = '';
-            state.myAbilities.forEach(a => {
+            state.myAbilities.forEach((a, i) => {
                 const b = document.createElement('button');
-                b.className = `btn ${a.rarity}`;
-                b.style.fontSize = '0.65rem';
-                b.style.padding = '8px';
+                b.className = `ability-bar-btn ${a.rarity} ${state.activeAbility === i ? 'active' : ''}`;
                 b.innerText = a.name;
-                b.onclick = () => toast("ability clicked! (feature coming soon)");
+                b.disabled = state.usedAbilities.has(i);
+                b.onclick = () => toggleAbility(i);
                 bar.appendChild(b);
             });
-            updateBoard();
         }
 
-        function makeMove(i) {
-            if (!state.isMyTurn || state.board[i]) return;
+        function toggleAbility(idx) {
+            if (!state.isMyTurn) return toast("wait for your turn");
+            state.activeAbility = state.activeAbility === idx ? null : idx;
+            renderAbilityBar();
+        }
+
+        function handleInput(i) {
+            if (!state.isMyTurn) return;
+            
+            // If an ability like 'void' is active, it handles the click differently
+            const currentAbility = state.activeAbility !== null ? state.myAbilities[state.activeAbility] : null;
+
+            if (currentAbility && currentAbility.id === 'r2') { // Void
+                if (!state.board[i]) return toast("click a mark to delete");
+                state.board[i] = null;
+                consumeAbility();
+                syncMove(i, null, true);
+                return;
+            }
+
+            if (state.board[i]) return;
+
+            // Normal Move
             state.board[i] = state.mySymbol;
+            
+            // Apply instant effects if active
+            if (currentAbility) {
+                applyAbilityEffect(currentAbility.id, true);
+                consumeAbility();
+            }
+
             state.isMyTurn = false;
-            updateBoard();
+            syncMove(i, state.mySymbol);
+            checkWinCondition();
+            updateUI();
+        }
+
+        function consumeAbility() {
+            state.usedAbilities.add(state.activeAbility);
+            state.activeAbility = null;
+            renderAbilityBar();
+        }
+
+        function applyAbilityEffect(id, isMe) {
+            const sym = isMe ? state.mySymbol : state.opSymbol;
+            const enemySym = isMe ? state.opSymbol : state.mySymbol;
+
+            switch(id) {
+                case 'l1': // Supernova
+                    state.board = Array(9).fill(null);
+                    break;
+                case 'r1': // Frost
+                    if (isMe) state.isMyTurn = true; // Stay my turn
+                    else state.isMyTurn = false;
+                    break;
+                case 'r5': // Scramble
+                    const marks = state.board.filter(x => x !== null).sort(() => Math.random() - 0.5);
+                    let markIdx = 0;
+                    state.board = state.board.map(x => x === null ? null : marks[markIdx++]);
+                    break;
+                case 'l2': // Glitch
+                    state.board = state.board.map(x => x === null ? null : (x === 'x' ? 'o' : 'x'));
+                    break;
+            }
+            updateUI();
+        }
+
+        function syncMove(idx, sym, isAbility = false) {
+            if (isAbility) {
+                state.socket.emit('ability-used', {
+                    room: state.room,
+                    abilityId: state.myAbilities[state.usedAbilities.size - 1]?.id,
+                    abilityName: state.myAbilities[state.usedAbilities.size - 1]?.name
+                });
+            }
             state.socket.emit('make-move', {
                 room: state.room,
-                index: i,
-                symbol: state.mySymbol
+                index: idx,
+                symbol: sym
             });
         }
 
-        function updateBoard() {
+        function checkWinCondition() {
+            const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            for (let combo of wins) {
+                const [a, b, c] = combo;
+                if (state.board[a] && state.board[a] === state.board[b] && state.board[a] === state.board[c]) {
+                    showResult(state.board[a] === state.mySymbol ? 'win' : 'lose');
+                    return;
+                }
+            }
+            if (!state.board.includes(null)) showResult('draw');
+        }
+
+        function showResult(type) {
+            switchScreen('screen-result');
+            const title = document.getElementById('result-title');
+            const desc = document.getElementById('result-desc');
+            
+            if (type === 'win') {
+                title.innerText = "victory";
+                title.style.color = "var(--accent)";
+                desc.innerText = "you dominated the grid.";
+            } else if (type === 'lose') {
+                title.innerText = "defeat";
+                title.style.color = "var(--danger)";
+                desc.innerText = "better luck next time.";
+            } else {
+                title.innerText = "draw";
+                title.style.color = "var(--text-dim)";
+                desc.innerText = "a perfect stalemate.";
+            }
+        }
+
+        function updateUI() {
             const cells = document.querySelectorAll('.cell');
             cells.forEach((c, i) => {
                 c.innerText = state.board[i] || '';
-                c.className = `cell ${state.board[i] || ''}`;
+                c.className = `cell ${state.board[i] || ''} ${state.board[i] ? 'taken' : ''}`;
             });
             const p = document.getElementById('game-prompt');
             p.innerText = state.isMyTurn ? "your turn" : `${state.opponent}'s turn`;
@@ -287,7 +438,7 @@
         }
 
         function cancelQueue() {
-            if (state.socket) state.socket.disconnect();
+            if (state.socket) state.socket.emit('leave-queue');
             location.reload();
         }
     </script>
