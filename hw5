@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Snowball Builder 3D — Pro Edition</title>
+<style>
+:root {
+  --ui-bg: rgba(15, 23, 42, 0.9);
+  --accent: #38bdf8;
+  --accent-hover: #0ea5e9;
+  --glass: rgba(255, 255, 255, 0.1);
+  --text: #f1f5f9;
+  --danger: #ef4444;
+  --border: rgba(255, 255, 255, 0.15);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  margin: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: #020617;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  user-select: none;
+}
+
+.panel {
+  position: absolute;
+  z-index: 100;
+  background: var(--ui-bg);
+  backdrop-filter: blur(16px);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  width: 260px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+#ui { top: 12px; left: 12px; }
+#decor-panel { top: 12px; right: 12px; }
+
+.panel-header {
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  background: rgba(255,255,255,0.05);
+  height: 44px;
+}
+
+.panel-header h1, .panel-header h2 { 
+  font-size: 14px; 
+  margin: 0; 
+  font-weight: 700; 
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.toggle-icon {
+  font-size: 16px;
+  transition: transform 0.3s;
+}
+
+.panel-content { padding: 12px; }
+
+/* Minimized States */
+.collapsed { width: 44px; }
+.collapsed .panel-content { display: none; }
+.collapsed .panel-header { justify-content: center; padding: 0; }
+.collapsed .panel-header h1, .collapsed .panel-header h2 { display: none; }
+.collapsed .toggle-icon { transform: rotate(-90deg); }
+
+.stat-group { display: flex; gap: 8px; margin-bottom: 12px; }
+.stat-card { flex: 1; background: var(--glass); padding: 6px; border-radius: 6px; text-align: center; }
+.stat-label { font-size: 9px; text-transform: uppercase; color: #94a3b8; }
+.stat-value { font-size: 14px; font-weight: 600; }
+
+.size-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; margin-bottom: 12px; }
+
+.btn {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: #fff;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 12px;
+}
+.btn.active { background: var(--accent); color: #0f172a; font-weight: 600; }
+.btn.primary { width: 100%; background: var(--accent); color: #0f172a; font-weight: 700; margin-top: 8px; }
+.btn.danger { background: rgba(239, 68, 68, 0.15); border-color: var(--danger); color: #fca5a5; width: 100%; margin-top: 4px; }
+
+/* Custom Checkbox Styling */
+.custom-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.custom-checkbox input { display: none; }
+
+.checkmark {
+  width: 20px;
+  height: 20px;
+  background: var(--glass);
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  position: relative;
+  transition: 0.2s;
+}
+
+.custom-checkbox input:checked + .checkmark {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.custom-checkbox input:checked + .checkmark::after {
+  content: "✓";
+  position: absolute;
+  color: #0f172a;
+  font-weight: bold;
+  font-size: 14px;
+  left: 3px;
+  top: -2px;
+}
+
+.autostack-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 30px;
+  margin-top: -5px;
+  margin-bottom: 10px;
+}
+
+.stack-slot {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.05);
+  cursor: pointer;
+}
+.stack-slot.selected { background: var(--accent); color: #0f172a; }
+
+#overlay-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.6);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 11px;
+  pointer-events: none;
+  text-align: center;
+  line-height: 1.4;
+  z-index: 50;
+}
+
+#three-container { width: 100%; height: 100%; touch-action: none; }
+</style>
+</head>
+<body>
+
+<div id="ui" class="panel">
+  <div class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">
+    <h1>Builder</h1>
+    <span class="toggle-icon">▾</span>
+  </div>
+  <div class="panel-content">
+    <div class="stat-group">
+      <div class="stat-card"><div class="stat-label">Money</div><div id="money" class="stat-value">$25.00</div></div>
+      <div class="stat-card"><div class="stat-label">Weight</div><div id="weight" class="stat-value">0 lb</div></div>
+    </div>
+    <div class="size-grid">
+      <button class="btn active" onclick="setSize('Small', this)">Small</button>
+      <button class="btn" onclick="setSize('Medium', this)">Medium</button>
+      <button class="btn" onclick="setSize('Large', this)">Large</button>
+      <button class="btn" onclick="setSize('XL', this)">XL</button>
+    </div>
+    <div id="price-info" style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;">Cost: $0.99</div>
+    
+    <label class="custom-checkbox">
+      <input type="checkbox" id="autostackToggle">
+      <div class="checkmark"></div>
+      <span>Autostack</span>
+    </label>
+    
+    <div id="stackList" class="autostack-options" style="display: none;">
+      <div class="stack-slot selected" onclick="selectStack(0, this)">Base Slot</div>
+      <div class="stack-slot" onclick="selectStack(1, this)">Mid Slot</div>
+      <div class="stack-slot" onclick="selectStack(2, this)">Top Slot</div>
+    </div>
+
+    <button class="btn primary" id="spawnBtn">SPAWN</button>
+    <button class="btn danger" id="deleteAllBtn">CLEAR (REFUND)</button>
+  </div>
+</div>
+
+<div id="decor-panel" class="panel">
+  <div class="panel-header" onclick="this.parentElement.classList.toggle('collapsed')">
+    <h2>Decorations</h2>
+    <span class="toggle-icon">▾</span>
+  </div>
+  <div class="panel-content">
+    <label class="custom-checkbox">
+      <input type="checkbox" id="decorAll" checked>
+      <div class="checkmark"></div>
+      <span>Enable All</span>
+    </label>
+    <label class="custom-checkbox">
+      <input type="checkbox" id="decorNose" checked>
+      <div class="checkmark"></div>
+      <span>Carrot Nose</span>
+    </label>
+    <label class="custom-checkbox">
+      <input type="checkbox" id="decorEyes" checked>
+      <div class="checkmark"></div>
+      <span>Coal Eyes</span>
+    </label>
+  </div>
+</div>
+
+<div id="overlay-hint">
+  Drag body/arrows to move • Arrows Keys: Slide • W/S: Height<br>
+  Stack in center to assemble • Refund by dragging to Trash
+</div>
+<div id="three-container"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+// --- CONFIG ---
+const SIZE_MAP = {
+  Small:  { price: 0.99, weight: 5,  radius: 8 },
+  Medium: { price: 2.97, weight: 15, radius: 11 },
+  Large:  { price: 4.95, weight: 25, radius: 15 },
+  XL:     { price: 6.93, weight: 30, radius: 18 }
+};
+
+let money = 25.00;
+let weight = 0;
+let selectedSize = 'Small';
+let currentStackIndex = 0;
+let snowballs = [];
+let assembledStack = [];
+
+// --- THREE.JS SETUP ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x020617);
+scene.fog = new THREE.FogExp2(0x020617, 0.0025);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1500);
+camera.position.set(0, 100, 220);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+document.getElementById('three-container').appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI / 2.1;
+
+// --- LIGHTING ---
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+sun.position.set(100, 200, 100);
+sun.castShadow = true;
+scene.add(sun);
+
+// --- SNOWFALL ---
+const snowCount = 3000;
+const snowGeo = new THREE.BufferGeometry();
+const snowPos = new Float32Array(snowCount * 3);
+for(let i=0; i<snowCount*3; i+=3) {
+  snowPos[i] = (Math.random() - 0.5) * 1000;
+  snowPos[i+1] = Math.random() * 600;
+  snowPos[i+2] = (Math.random() - 0.5) * 1000;
+}
+snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+const snowParticles = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.5, transparent: true, opacity: 0.6 }));
+scene.add(snowParticles);
+
+// --- WORLD ---
+const ground = new THREE.Mesh(new THREE.CircleGeometry(800, 32), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
+scene.add(ground);
+
+const trash = new THREE.Group();
+trash.add(new THREE.Mesh(new THREE.CylinderGeometry(18, 15, 30, 16), new THREE.MeshStandardMaterial({ color: 0xef4444 })));
+trash.position.set(140, 15, 0);
+scene.add(trash);
+
+// --- GIZMO SYSTEM (BLENDER STYLE) ---
+const gizmoGroup = new THREE.Group();
+scene.add(gizmoGroup);
+
+function createBlenderArrow(axis, color) {
+  const arrowGroup = new THREE.Group();
+  
+  // Longer, thicker shaft
+  const shaftGeo = new THREE.CylinderGeometry(1.6, 1.6, 40, 8);
+  const shaft = new THREE.Mesh(shaftGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8 }));
+  
+  // Sharp cone head
+  const headGeo = new THREE.ConeGeometry(4, 10, 12);
+  const head = new THREE.Mesh(headGeo, new THREE.MeshBasicMaterial({ color }));
+  head.position.y = 25; // Adjusted for longer shaft
+  
+  arrowGroup.add(shaft, head);
+  arrowGroup.userData = { axis };
+  return arrowGroup;
+}
+
+const arrowX = createBlenderArrow('x', 0xff3b30); // Red for X
+arrowX.rotation.z = -Math.PI/2;
+const arrowY = createBlenderArrow('y', 0x4cd964); // Green for Y
+const arrowZ = createBlenderArrow('z', 0x007aff); // Blue for Z
+arrowZ.rotation.x = Math.PI/2;
+
+gizmoGroup.add(arrowX, arrowY, arrowZ);
+gizmoGroup.visible = false;
+
+// --- LOGIC ---
+function setSize(size, btn) {
+  selectedSize = size;
+  document.querySelectorAll('#ui .btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('price-info').textContent = `Cost: $${SIZE_MAP[size].price}`;
+}
+
+function selectStack(idx, el) {
+  currentStackIndex = idx;
+  document.querySelectorAll('.stack-slot').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+document.getElementById('autostackToggle').onchange = (e) => {
+  document.getElementById('stackList').style.display = e.target.checked ? 'flex' : 'none';
+};
+
+function spawnSnowball(sizeKey) {
+  const data = SIZE_MAP[sizeKey];
+  if (money < data.price) return;
+
+  const ball = new THREE.Mesh(
+    new THREE.SphereGeometry(data.radius, 32, 24),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 })
+  );
+  ball.castShadow = ball.receiveShadow = true;
+  ball.userData = { ...data, isStacked: false, decorations: [] };
+  
+  const auto = document.getElementById('autostackToggle').checked;
+  if (auto) {
+    ball.userData.isStacked = true;
+    assembledStack.splice(currentStackIndex, 0, ball);
+    recalculateStack();
+  } else {
+    ball.position.set(-80 + Math.random()*40, data.radius, -20 + Math.random()*40);
+  }
+  
+  scene.add(ball);
+  snowballs.push(ball);
+  money -= data.price;
+  weight += data.weight;
+  updateUI();
+  updateDecorations();
+}
+
+function updateUI() {
+  document.getElementById('money').textContent = `$${money.toFixed(2)}`;
+  document.getElementById('weight').textContent = `${weight} lb`;
+}
+
+function updateDecorations() {
+  const showAll = document.getElementById('decorAll').checked;
+  const showNose = showAll && document.getElementById('decorNose').checked;
+  const showEyes = showAll && document.getElementById('decorEyes').checked;
+
+  snowballs.forEach(ball => {
+    ball.userData.decorations.forEach(d => ball.remove(d));
+    ball.userData.decorations = [];
+    
+    if (ball.userData.isStacked && assembledStack.indexOf(ball) === assembledStack.length - 1) {
+      const r = ball.userData.radius;
+      if (showNose) {
+        const nose = new THREE.Mesh(new THREE.ConeGeometry(r*0.15, r*0.6, 8), new THREE.MeshStandardMaterial({ color: 0xffa500 }));
+        nose.rotation.z = -Math.PI/2; nose.position.set(r*0.9, 0, 0);
+        ball.add(nose); ball.userData.decorations.push(nose);
+      }
+      if (showEyes) {
+        const eyeL = new THREE.Mesh(new THREE.SphereGeometry(r*0.1, 8, 8), new THREE.MeshStandardMaterial({ color: 0x000000 }));
+        eyeL.position.set(r*0.7, r*0.3, r*0.3);
+        const eyeR = eyeL.clone(); eyeR.position.z = -r*0.3;
+        ball.add(eyeL, eyeR); ball.userData.decorations.push(eyeL, eyeR);
+      }
+    }
+  });
+}
+
+// --- INTERACTION ---
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let dragTarget = null;
+let dragGizmoAxis = null;
+
+function handlePointer(e) {
+  const x = e.touches ? e.touches[0].clientX : e.clientX;
+  const y = e.touches ? e.touches[0].clientY : e.clientY;
+  mouse.x = (x / window.innerWidth) * 2 - 1;
+  mouse.y = -(y / window.innerHeight) * 2 + 1;
+}
+
+window.addEventListener('pointerdown', (e) => {
+  // Ignore clicks on UI
+  if (e.target.closest('.panel')) return;
+
+  handlePointer(e);
+  raycaster.setFromCamera(mouse, camera);
+
+  const gizmoHits = raycaster.intersectObjects(gizmoGroup.children, true);
+  if (gizmoHits.length > 0 && gizmoGroup.visible) {
+    dragGizmoAxis = gizmoHits[0].object.parent.userData.axis;
+    controls.enabled = false;
+    return;
+  }
+
+  const ballHits = raycaster.intersectObjects(snowballs);
+  if (ballHits.length > 0) {
+    dragTarget = ballHits[0].object;
+    gizmoGroup.visible = true;
+    gizmoGroup.position.copy(dragTarget.position);
+    controls.enabled = false;
+    
+    if (dragTarget.userData.isStacked) {
+      dragTarget.userData.isStacked = false;
+      assembledStack = assembledStack.filter(b => b !== dragTarget);
+      recalculateStack();
+    }
+  } else {
+    gizmoGroup.visible = false;
+    dragTarget = null;
+  }
+});
+
+window.addEventListener('pointermove', (e) => {
+  if (!dragTarget && !dragGizmoAxis) return;
+  handlePointer(e);
+  raycaster.setFromCamera(mouse, camera);
+
+  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const intersectPoint = new THREE.Vector3();
+  raycaster.ray.intersectPlane(plane, intersectPoint);
+
+  if (dragGizmoAxis) {
+    if (dragGizmoAxis === 'x') dragTarget.position.x = intersectPoint.x;
+    if (dragGizmoAxis === 'y') dragTarget.position.y = Math.max(dragTarget.userData.radius, intersectPoint.y || raycaster.ray.origin.y - 100);
+    if (dragGizmoAxis === 'z') dragTarget.position.z = intersectPoint.z;
+  } else if (dragTarget) {
+    dragTarget.position.x = intersectPoint.x;
+    dragTarget.position.z = intersectPoint.z;
+    dragTarget.position.y = Math.max(dragTarget.userData.radius, dragTarget.position.y);
+  }
+  
+  if (dragTarget) gizmoGroup.position.copy(dragTarget.position);
+});
+
+window.addEventListener('pointerup', () => {
+  if (dragTarget) {
+    if (dragTarget.position.distanceTo(trash.position) < 45) {
+      money += dragTarget.userData.price;
+      weight -= dragTarget.userData.weight;
+      snowballs = snowballs.filter(b => b !== dragTarget);
+      scene.remove(dragTarget);
+      gizmoGroup.visible = false;
+      dragTarget = null;
+      updateUI();
+    } else if (new THREE.Vector2(dragTarget.position.x, dragTarget.position.z).length() < 30) {
+      dragTarget.userData.isStacked = true;
+      assembledStack.push(dragTarget);
+      recalculateStack();
+    }
+  }
+  dragGizmoAxis = null;
+  controls.enabled = true;
+  updateDecorations();
+});
+
+// --- KEYBOARD CONTROLS ---
+window.addEventListener('keydown', (e) => {
+  if (!dragTarget) return;
+  const step = 2.5;
+  switch(e.key) {
+    case 'ArrowUp':    dragTarget.position.z -= step; break;
+    case 'ArrowDown':  dragTarget.position.z += step; break;
+    case 'ArrowLeft':  dragTarget.position.x -= step; break;
+    case 'ArrowRight': dragTarget.position.x += step; break;
+    case 'w': case 'W': dragTarget.position.y += step; break;
+    case 's': case 'S': dragTarget.position.y = Math.max(dragTarget.userData.radius, dragTarget.position.y - step); break;
+  }
+  gizmoGroup.position.copy(dragTarget.position);
+});
+
+function recalculateStack() {
+  let currentY = 0;
+  assembledStack.forEach(ball => {
+    ball.position.set(0, currentY + ball.userData.radius, 0);
+    currentY += ball.userData.radius * 1.75;
+    if (dragTarget === ball) gizmoGroup.position.copy(ball.position);
+  });
+}
+
+// --- LOOP ---
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  
+  const positions = snowParticles.geometry.attributes.position.array;
+  for(let i=1; i<positions.length; i+=3) {
+    positions[i] -= 0.8;
+    if (positions[i] < 0) positions[i] = 600;
+  }
+  snowParticles.geometry.attributes.position.needsUpdate = true;
+
+  const time = Date.now() * 0.002;
+  snowballs.forEach(b => {
+    if (!b.userData.isStacked && b !== dragTarget) {
+      b.position.y = b.userData.radius + Math.sin(time + b.position.x) * 0.4;
+    }
+  });
+
+  renderer.render(scene, camera);
+}
+
+document.getElementById('spawnBtn').onclick = () => spawnSnowball(selectedSize);
+document.getElementById('deleteAllBtn').onclick = () => {
+  snowballs.forEach(b => {
+    money += b.userData.price; // Full refund
+    scene.remove(b);
+  });
+  snowballs = []; 
+  assembledStack = []; 
+  weight = 0; 
+  updateUI(); 
+  gizmoGroup.visible = false;
+};
+document.querySelectorAll('input[type="checkbox"]').forEach(i => i.onchange = updateDecorations);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+updateUI();
+animate();
+spawnSnowball('Medium');
+</script>
+</body>
+</html>
