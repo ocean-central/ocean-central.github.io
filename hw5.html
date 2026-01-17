@@ -13,8 +13,8 @@
 
     <style>
         :root {
-            --bg: #0a0a0a;
-            --surface: #1a1a1a;
+            --bg: #050505;
+            --surface: #121212;
             --accent: #8ab4f8;
             --text: #e8eaed;
             --text-dim: #9aa0a6;
@@ -28,44 +28,61 @@
         * { margin: 0; padding: 0; box-sizing: border-box; text-transform: lowercase; font-family: var(--font); }
         body { background-color: var(--bg); color: var(--text); overflow: hidden; height: 100vh; display: flex; justify-content: center; align-items: center; }
 
-        .screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 24px; transition: 0.5s; z-index: 10; }
-        .hidden { display: none !important; }
+        .screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 24px; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 10; opacity: 1; transform: scale(1); }
+        .hidden { opacity: 0; transform: scale(0.95); pointer-events: none; visibility: hidden; }
 
-        .card { background: var(--surface); padding: 32px; border-radius: 28px; width: 100%; max-width: 420px; text-align: center; border: 1px solid rgba(255,255,255,0.08); animation: fadeIn 0.6s ease-out; position: relative; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .card { background: var(--surface); padding: 40px; border-radius: 32px; width: 100%; max-width: 420px; text-align: center; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
 
-        .player-count-container { margin-bottom: 24px; }
-        .count-num { font-size: 2.5rem; font-weight: 700; color: var(--accent); display: block; line-height: 1; }
-        .count-label { color: var(--text-dim); font-size: 0.8rem; letter-spacing: 1px; }
+        /* Fancy Pulse Loading */
+        .radar-container { position: relative; width: 80px; height: 80px; margin: 20px auto; }
+        .radar-circle { position: absolute; width: 100%; height: 100%; border: 3px solid var(--accent); border-radius: 50%; animation: pulse 2s infinite; opacity: 0; }
+        .radar-circle:nth-child(2) { animation-delay: 0.6s; }
+        .radar-circle:nth-child(3) { animation-delay: 1.2s; }
+        @keyframes pulse {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { opacity: 0.5; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
 
-        input { width: 100%; padding: 18px; background: #252525; border: 2px solid transparent; border-radius: 16px; color: white; margin-bottom: 20px; outline: none; transition: 0.3s; }
-        input:focus { border-color: var(--accent); }
+        .player-count-container { margin-bottom: 30px; }
+        .count-num { font-size: 3rem; font-weight: 700; color: var(--accent); text-shadow: 0 0 20px rgba(138, 180, 248, 0.3); }
+        .count-label { color: var(--text-dim); font-size: 0.85rem; letter-spacing: 2px; }
 
-        .btn { background: var(--accent); color: var(--bg); padding: 16px; border-radius: 16px; border: none; font-weight: 700; cursor: pointer; width: 100%; transition: 0.2s; }
-        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .btn-sec { background: transparent; border: 1px solid #444; color: white; margin-top: 10px; }
+        input { width: 100%; padding: 20px; background: #1e1e1e; border: 2px solid transparent; border-radius: 20px; color: white; margin-bottom: 20px; outline: none; transition: 0.3s; font-size: 1rem; }
+        input:focus { border-color: var(--accent); background: #252525; }
 
-        .ability-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; max-height: 350px; overflow-y: auto; padding-right: 5px; }
-        .ability-card { background: #252525; padding: 14px; border-radius: 16px; text-align: left; border-left: 4px solid var(--common); transition: 0.3s; }
+        .btn { background: var(--accent); color: #000; padding: 18px; border-radius: 20px; border: none; font-weight: 700; cursor: pointer; width: 100%; transition: 0.2s; font-size: 1rem; }
+        .btn:hover:not(:disabled) { transform: translateY(-3px); filter: brightness(1.1); box-shadow: 0 8px 20px rgba(138, 180, 248, 0.2); }
+        .btn-sec { background: transparent; border: 1px solid #333; color: white; margin-top: 12px; }
+
+        .ability-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; max-height: 380px; overflow-y: auto; padding-right: 8px; }
+        .ability-card { background: #1e1e1e; padding: 16px; border-radius: 20px; text-align: left; border-left: 5px solid var(--common); transition: 0.3s; cursor: default; }
         .ability-card.rare { border-left-color: var(--rare); }
         .ability-card.legendary { border-left-color: var(--legendary); }
-        .rarity-tag { font-size: 0.65rem; font-weight: 700; opacity: 0.8; margin-bottom: 2px; display: block; }
+        .ability-name { font-weight: 700; font-size: 1.1rem; display: block; }
+        .ability-desc { font-size: 0.85rem; color: var(--text-dim); margin-top: 4px; line-height: 1.4; }
 
-        .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
-        .cell { width: 95px; height: 95px; background: var(--surface); border-radius: 20px; display: flex; justify-content: center; align-items: center; font-size: 2.5rem; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,0.03); transition: 0.2s; }
-        .cell:hover:not(.taken) { background: #222; }
+        .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0; transition: transform 0.1s; }
+        .cell { width: 98px; height: 98px; background: var(--surface); border-radius: 24px; display: flex; justify-content: center; align-items: center; font-size: 2.8rem; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,0.03); transition: all 0.2s; position: relative; }
+        .cell:hover:not(.taken) { background: #1e1e1e; transform: scale(1.02); }
         .cell.x { color: var(--accent); }
         .cell.o { color: var(--danger); }
+        
+        .shake { animation: shake 0.4s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
 
-        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 100; pointer-events: none; }
-        .toast { background: #333; padding: 12px 20px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid var(--accent); animation: slideIn 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
-        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .ability-bar-btn { flex: 1; padding: 12px; font-size: 0.7rem; font-weight: 700; border-radius: 16px; border: 1px solid #333; cursor: pointer; background: #1a1a1a; color: white; transition: 0.2s; position: relative; overflow: hidden; min-width: 80px; }
+        .ability-bar-btn.on-cd { filter: grayscale(1); opacity: 0.4; }
+        .ability-bar-btn.active { border-color: var(--accent); box-shadow: 0 0 15px var(--accent); z-index: 5; }
+        .cd-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
 
-        .ability-bar-btn { flex: 1; padding: 10px; font-size: 0.65rem; font-weight: 700; border-radius: 12px; border: 1px solid #333; cursor: pointer; background: #252525; color: white; transition: 0.2s; white-space: nowrap; position: relative; overflow: hidden; }
-        .ability-bar-btn:disabled { opacity: 0.5; }
-        .ability-bar-btn.on-cd { filter: grayscale(1); cursor: not-allowed; }
-        .ability-bar-btn.active { border-color: var(--accent); box-shadow: 0 0 10px var(--accent); }
-        .cd-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; font-size: 1rem; color: white; }
+        .toast-container { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 100; pointer-events: none; width: 90%; max-width: 400px; }
+        .toast { background: #222; padding: 14px 24px; border-radius: 16px; margin-top: 10px; border-left: 4px solid var(--accent); animation: slideUp 0.3s; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; font-weight: 700; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -75,41 +92,45 @@
     <div id="screen-start" class="screen">
         <div class="card">
             <div class="player-count-container">
-                <span class="count-num" id="online-count">--</span>
-                <span class="count-label">online players</span>
+                <span class="count-num" id="online-count">--</span><br>
+                <span class="count-label">players online</span>
             </div>
-            <h1>tic-tac-toe</h1>
-            <p>but with abilities</p>
-            <input type="text" id="username" placeholder="enter nickname" maxlength="15">
+            <h1 style="font-size: 2.2rem; margin-bottom: 8px;">tic-tac-toe</h1>
+            <p style="color: var(--text-dim); margin-bottom: 30px;">with tactical abilities</p>
+            <input type="text" id="username" placeholder="enter nickname" maxlength="12">
             <button class="btn" onclick="startQueue()">find match</button>
         </div>
     </div>
 
     <div id="screen-queue" class="screen hidden">
         <div class="card">
-            <div class="loader" style="width: 40px; height: 40px; border: 4px solid #333; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s infinite linear; margin: 20px auto;"></div>
-            <h1>searching</h1>
-            <p id="queue-status">looking for opponents...</p>
+            <div class="radar-container">
+                <div class="radar-circle"></div>
+                <div class="radar-circle"></div>
+                <div class="radar-circle"></div>
+            </div>
+            <h1 style="margin-top: 20px;">searching</h1>
+            <p id="queue-status" style="color: var(--text-dim);">finding a worthy opponent...</p>
             <button class="btn btn-sec" onclick="cancelQueue()">cancel</button>
         </div>
     </div>
 
     <div id="screen-draft" class="screen hidden">
         <div class="card">
-            <h1 id="draft-title">your loadout</h1>
-            <p id="reroll-count">rerolls left: 3</p>
+            <h1>your loadout</h1>
+            <p id="reroll-count" style="margin-bottom: 20px; color: var(--accent);">3 rerolls available</p>
             <div class="ability-grid" id="draft-grid"></div>
-            <button class="btn" onclick="confirmDraft()">ready to play</button>
+            <button class="btn" onclick="confirmDraft()">ready</button>
             <button class="btn btn-sec" id="reroll-btn" onclick="rerollAbilities()">reroll (3/3)</button>
         </div>
     </div>
 
     <div id="screen-game" class="screen hidden">
-        <div style="display:flex; justify-content:space-between; width: 310px; margin-bottom: 10px;">
-            <div id="p1-info" style="font-weight:700">you (x)</div>
-            <div id="p2-info" style="font-weight:700; color:var(--danger)">-- (o)</div>
+        <div style="display:flex; justify-content:space-between; width: 320px; margin-bottom: 12px; padding: 0 4px;">
+            <div id="p1-info" style="font-weight:700; font-size: 0.9rem;">you (x)</div>
+            <div id="p2-info" style="font-weight:700; color:var(--danger); font-size: 0.9rem;">opponent (o)</div>
         </div>
-        <div id="game-prompt" style="font-weight:700; color:var(--accent); margin-bottom: 15px;">your turn</div>
+        <div id="game-prompt" style="font-weight:700; color:var(--accent); margin-bottom: 20px; font-size: 1.2rem;">your turn</div>
         <div class="board" id="board">
             <div class="cell" onclick="handleInput(0)"></div>
             <div class="cell" onclick="handleInput(1)"></div>
@@ -121,15 +142,15 @@
             <div class="cell" onclick="handleInput(7)"></div>
             <div class="cell" onclick="handleInput(8)"></div>
         </div>
-        <div id="ability-bar" style="display:flex; gap:6px; width:310px; overflow-x: auto;"></div>
+        <div id="ability-bar" style="display:flex; gap:8px; width:320px; overflow-x: auto; padding: 4px;"></div>
     </div>
 
     <div id="screen-result" class="screen hidden">
         <div class="card">
-            <h1 id="result-title">victory</h1>
-            <p id="result-desc">you outplayed your opponent</p>
-            <button class="btn" onclick="startQueue()">find new match</button>
-            <button class="btn btn-sec" onclick="location.reload()">main menu</button>
+            <h1 id="result-title" style="font-size: 3rem;">victory</h1>
+            <p id="result-desc" style="margin-bottom: 30px; color: var(--text-dim);">gg wp</p>
+            <button class="btn" onclick="startQueue()">play again</button>
+            <button class="btn btn-sec" onclick="location.reload()">menu</button>
         </div>
     </div>
 
@@ -139,26 +160,21 @@
                 { id: 'c1', name: 'nudge', desc: 'move a random enemy mark to a neighbor.', type: 'auto', cd: 1 },
                 { id: 'c2', name: 'dust', desc: 'clear a random mark from the board.', type: 'auto', cd: 1 },
                 { id: 'c3', name: 'gift', desc: 'place a mark in a random empty slot.', type: 'auto', cd: 1 },
-                { id: 'c4', name: 'block', desc: 'block an empty slot for 10s.', type: 'target', cd: 1 },
-                { id: 'c8', name: 'ping', desc: 'fill all 4 corners if they are empty.', type: 'auto', cd: 1 }
+                { id: 'c4', name: 'block', desc: 'mark a cell as unplayable temporarily.', type: 'target', cd: 1 },
+                { id: 'c5', name: 'corner', desc: 'instantly claim a random corner.', type: 'auto', cd: 1 }
             ],
             rare: [
                 { id: 'r1', name: 'frost', desc: 'opponent skips their next turn.', type: 'auto', cd: 3 },
-                { id: 'r2', name: 'void', desc: 'click any mark to delete it.', type: 'target', cd: 3 },
-                { id: 'r3', name: 'haste', desc: 'take 1 extra turn right now.', type: 'auto', cd: 3 },
-                { id: 'r5', name: 'scramble', desc: 'randomize the board state.', type: 'auto', cd: 3 }
+                { id: 'r2', name: 'void', desc: 'permanently delete any mark on the board.', type: 'target', cd: 3 },
+                { id: 'r3', name: 'haste', desc: 'take 1 extra turn immediately.', type: 'auto', cd: 3 },
+                { id: 'r4', name: 'scramble', desc: 'randomly rearrange all current marks.', type: 'auto', cd: 3 }
             ],
             legendary: [
-                { id: 'l1', name: 'supernova', desc: 'wipe everything. start over.', type: 'auto', cd: 5 },
-                { id: 'l2', name: 'glitch', desc: 'swap ALL X marks with O marks.', type: 'auto', cd: 5 },
-                { id: 'l3', name: 'judgment', desc: 'win instantly if you have 2 in a row.', type: 'auto', cd: 5 }
+                { id: 'l1', name: 'supernova', desc: 'wipe the entire board clean.', type: 'auto', cd: 5 },
+                { id: 'l2', name: 'glitch', desc: 'swap all X marks with O marks.', type: 'auto', cd: 5 },
+                { id: 'l3', name: 'judgment', desc: 'auto-complete a winning row if possible.', type: 'auto', cd: 4 }
             ]
         };
-
-        // Fill remaining pools with generic strong abilities to ensure 10 of each
-        for(let i=0; i<5; i++) abilitiesData.common.push({id:`cc${i}`, name:'common boost', desc:'claim a random corner.', type:'auto', cd: 1});
-        for(let i=0; i<6; i++) abilitiesData.rare.push({id:`rr${i}`, name:'rare strike', desc:'clear 1 enemy mark.', type:'auto', cd: 3});
-        for(let i=0; i<7; i++) abilitiesData.legendary.push({id:`ll${i}`, name:'legend blast', desc:'clear a random row.', type:'auto', cd: 5});
 
         let state = {
             socket: null,
@@ -171,13 +187,13 @@
             rerolls: 3,
             myAbilities: [],
             activeAbilityIdx: null,
-            cooldowns: [0, 0, 0] // Track remaining turns for each slot
+            cooldowns: [0, 0, 0]
         };
 
         const serverUrl = "https://tic-tac-toe-d8v4.onrender.com/";
+        const socket = io(serverUrl, { transports: ['websocket', 'polling'] });
 
-        const tempSocket = io(serverUrl, { transports: ['websocket', 'polling'] });
-        tempSocket.on('player-count', (count) => {
+        socket.on('player-count', (count) => {
             document.getElementById('online-count').innerText = count;
         });
 
@@ -201,12 +217,9 @@
             if (user.length < 2) return toast("name too short");
             
             switchScreen('screen-queue');
-            if (!state.socket) state.socket = io(serverUrl, { transports: ['websocket', 'polling'] });
+            socket.emit('join-queue', user);
 
-            state.socket.off(); 
-            state.socket.emit('join-queue', user);
-
-            state.socket.on('match-found', (data) => {
+            socket.off('match-found').on('match-found', (data) => {
                 state.room = data.room;
                 state.opponentName = data.opponent;
                 state.mySymbol = data.symbol;
@@ -217,37 +230,28 @@
                 state.rerolls = 3;
                 generateLoadout();
                 switchScreen('screen-draft');
+                toast(`match found vs ${state.opponentName}!`);
             });
 
-            state.socket.on('move-made', (data) => {
-                state.board = data.newBoard || state.board;
-                if (data.index !== undefined && data.symbol) state.board[data.index] = data.symbol;
+            socket.off('move-made').on('move-made', (data) => {
+                state.board = data.newBoard;
                 state.isMyTurn = true;
-                // Reduce cooldowns when it becomes your turn
                 state.cooldowns = state.cooldowns.map(c => Math.max(0, c - 1));
                 checkWinCondition();
                 updateUI();
+                if (data.effect) triggerShake();
             });
         }
 
         function generateLoadout() {
-            const roll = (r) => {
+            const roll = () => {
+                const r = Math.random();
                 if (r > 0.9) return { ...abilitiesData.legendary[Math.floor(Math.random()*abilitiesData.legendary.length)], rarity: 'legendary' };
                 if (r > 0.6) return { ...abilitiesData.rare[Math.floor(Math.random()*abilitiesData.rare.length)], rarity: 'rare' };
                 return { ...abilitiesData.common[Math.floor(Math.random()*abilitiesData.common.length)], rarity: 'common' };
             };
-            state.myAbilities = [roll(Math.random()), roll(Math.random()), roll(Math.random())];
+            state.myAbilities = [roll(), roll(), roll()];
             renderDraft();
-        }
-
-        function renderDraft() {
-            const grid = document.getElementById('draft-grid');
-            grid.innerHTML = '';
-            state.myAbilities.forEach(a => {
-                grid.innerHTML += `<div class="ability-card ${a.rarity}"><span class="rarity-tag">${a.rarity}</span><span class="ability-name">${a.name}</span><span class="ability-desc">${a.desc}</span></div>`;
-            });
-            document.getElementById('reroll-count').innerText = `rerolls left: ${state.rerolls}`;
-            document.getElementById('reroll-btn').disabled = state.rerolls <= 0;
         }
 
         function rerollAbilities() {
@@ -257,9 +261,21 @@
             }
         }
 
+        function renderDraft() {
+            const grid = document.getElementById('draft-grid');
+            grid.innerHTML = '';
+            state.myAbilities.forEach(a => {
+                grid.innerHTML += `<div class="ability-card ${a.rarity}"><span class="rarity-tag" style="color:var(--${a.rarity})">${a.rarity}</span><span class="ability-name">${a.name}</span><span class="ability-desc">${a.desc}</span></div>`;
+            });
+            document.getElementById('reroll-count').innerText = `${state.rerolls} rerolls left`;
+            document.getElementById('reroll-btn').disabled = state.rerolls <= 0;
+            document.getElementById('reroll-btn').innerText = `reroll (${state.rerolls}/3)`;
+        }
+
         function confirmDraft() {
             switchScreen('screen-game');
             document.getElementById('p2-info').innerText = `${state.opponentName} (${state.opSymbol})`;
+            document.getElementById('p1-info').innerText = `you (${state.mySymbol})`;
             updateUI();
         }
 
@@ -270,17 +286,10 @@
                 const b = document.createElement('button');
                 const cd = state.cooldowns[i];
                 b.className = `ability-bar-btn ${a.rarity} ${state.activeAbilityIdx === i ? 'active' : ''} ${cd > 0 ? 'on-cd' : ''}`;
-                b.innerText = a.name;
-                
-                if (cd > 0) {
-                    const overlay = document.createElement('div');
-                    overlay.className = 'cd-overlay';
-                    overlay.innerText = cd;
-                    b.appendChild(overlay);
-                }
-
+                b.innerHTML = `<span>${a.name}</span>`;
+                if (cd > 0) b.innerHTML += `<div class="cd-overlay">${cd}</div>`;
                 b.onclick = () => {
-                    if (cd > 0) return toast(`cooldown: ${cd} turns left`);
+                    if (cd > 0) return toast(`wait ${cd} more turns`);
                     toggleAbility(i);
                 };
                 bar.appendChild(b);
@@ -289,22 +298,23 @@
             const cells = document.querySelectorAll('.cell');
             cells.forEach((c, i) => {
                 const val = state.board[i];
-                c.innerText = val === 'BLOCKED' ? '!!' : (val || '');
+                c.innerText = val === 'BLOCK' ? 'ø' : (val || '');
                 c.className = `cell ${val || ''} ${val ? 'taken' : ''}`;
             });
             const p = document.getElementById('game-prompt');
-            p.innerText = state.isMyTurn ? "your turn" : "waiting...";
+            p.innerText = state.isMyTurn ? "your turn" : "waiting for enemy...";
             p.style.color = state.isMyTurn ? "var(--accent)" : "var(--danger)";
         }
 
         function toggleAbility(idx) {
-            if (!state.isMyTurn) return toast("not your turn");
+            if (!state.isMyTurn) return toast("it's not your turn");
             const ability = state.myAbilities[idx];
             if (ability.type === 'auto') {
                 state.activeAbilityIdx = idx;
                 useAbility();
             } else {
                 state.activeAbilityIdx = state.activeAbilityIdx === idx ? null : idx;
+                if (state.activeAbilityIdx !== null) toast(`select a cell for ${ability.name}`);
                 updateUI();
             }
         }
@@ -324,23 +334,73 @@
         function useAbility(targetIdx = null) {
             const idx = state.activeAbilityIdx;
             const ability = state.myAbilities[idx];
-            
-            // Apply logic
-            if (ability.id === 'l1') state.board = Array(9).fill(null);
-            else if (ability.id === 'r2' && targetIdx !== null) state.board[targetIdx] = null;
-            else if (ability.id === 'r3') state.isMyTurn = true;
-            else if (ability.id === 'c8') [0,2,6,8].forEach(x => {if(!state.board[x]) state.board[x]=state.mySymbol;});
+            let effect = true;
+
+            // Advanced Ability Logic
+            switch(ability.id) {
+                case 'l1': state.board = Array(9).fill(null); break;
+                case 'l2': state.board = state.board.map(v => v === 'x' ? 'o' : (v === 'o' ? 'x' : v)); break;
+                case 'l3': 
+                    const winIdx = findWinningMove(state.mySymbol);
+                    if (winIdx !== null) state.board[winIdx] = state.mySymbol;
+                    else effect = false;
+                    break;
+                case 'r2': if (targetIdx !== null) state.board[targetIdx] = null; break;
+                case 'r3': state.isMyTurn = true; break;
+                case 'r4': state.board = state.board.sort(() => Math.random() - 0.5); break;
+                case 'c1': // Nudge
+                    const enemyMarks = state.board.map((v, i) => v === state.opSymbol ? i : null).filter(v => v !== null);
+                    if (enemyMarks.length) {
+                        const from = enemyMarks[Math.floor(Math.random()*enemyMarks.length)];
+                        const empty = state.board.map((v, i) => v === null ? i : null).filter(v => v !== null);
+                        if (empty.length) state.board[empty[Math.floor(Math.random()*empty.length)]] = state.opSymbol;
+                        state.board[from] = null;
+                    }
+                    break;
+                case 'c2': 
+                    const allMarks = state.board.map((v, i) => v ? i : null).filter(v => v !== null);
+                    if (allMarks.length) state.board[allMarks[Math.floor(Math.random()*allMarks.length)]] = null;
+                    break;
+                case 'c3':
+                    const emptyCells = state.board.map((v, i) => v === null ? i : null).filter(v => v !== null);
+                    if (emptyCells.length) state.board[emptyCells[Math.floor(Math.random()*emptyCells.length)]] = state.mySymbol;
+                    break;
+                case 'c4': if (targetIdx !== null) state.board[targetIdx] = 'BLOCK'; break;
+                case 'c5':
+                    const corners = [0,2,6,8].filter(c => state.board[c] === null);
+                    if (corners.length) state.board[corners[Math.floor(Math.random()*corners.length)]] = state.mySymbol;
+                    break;
+            }
             
             state.cooldowns[idx] = ability.cd;
             state.activeAbilityIdx = null;
-            toast(`${ability.name} used!`);
-            syncTurn();
+            if (effect) triggerShake();
+            toast(`${ability.name} activated!`, 'legendary');
+            syncTurn(effect);
         }
 
-        function syncTurn() {
-            state.socket.emit('make-move', {
+        function findWinningMove(sym) {
+            const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            for (let combo of wins) {
+                const marks = combo.map(i => state.board[i]);
+                if (marks.filter(m => m === sym).length === 2 && marks.filter(m => m === null).length === 1) {
+                    return combo[marks.indexOf(null)];
+                }
+            }
+            return null;
+        }
+
+        function triggerShake() {
+            const b = document.getElementById('board');
+            b.classList.add('shake');
+            setTimeout(() => b.classList.remove('shake'), 400);
+        }
+
+        function syncTurn(hasEffect = false) {
+            socket.emit('make-move', {
                 room: state.room,
-                newBoard: state.board
+                newBoard: state.board,
+                effect: hasEffect
             });
             checkWinCondition();
             updateUI();
@@ -350,9 +410,8 @@
             const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
             for (let combo of wins) {
                 const [a, b, c] = combo;
-                if (state.board[a] && state.board[a] !== 'BLOCKED' && state.board[a] === state.board[b] && state.board[a] === state.board[c]) {
-                    showResult(state.board[a] === state.mySymbol ? 'win' : 'lose');
-                    return;
+                if (state.board[a] && state.board[a] !== 'BLOCK' && state.board[a] === state.board[b] && state.board[a] === state.board[c]) {
+                    return showResult(state.board[a] === state.mySymbol ? 'win' : 'lose');
                 }
             }
             if (!state.board.includes(null)) showResult('draw');
@@ -361,7 +420,9 @@
         function showResult(type) {
             switchScreen('screen-result');
             const title = document.getElementById('result-title');
-            title.innerText = type === 'win' ? "victory" : (type === 'lose' ? "defeat" : "draw");
+            if (type === 'win') { title.innerText = "victory"; title.style.color = "var(--accent)"; }
+            else if (type === 'lose') { title.innerText = "defeat"; title.style.color = "var(--danger)"; }
+            else { title.innerText = "draw"; title.style.color = "var(--text-dim)"; }
         }
 
         function cancelQueue() { location.reload(); }
