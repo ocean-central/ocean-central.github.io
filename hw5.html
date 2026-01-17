@@ -44,36 +44,28 @@
         .btn { background: var(--accent); color: var(--bg); padding: 16px; border-radius: 16px; border: none; font-weight: 700; cursor: pointer; width: 100%; transition: 0.2s; }
         .btn:disabled { opacity: 0.3; cursor: not-allowed; }
         .btn-sec { background: transparent; border: 1px solid #444; color: white; margin-top: 10px; }
-        .btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
 
         .ability-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; max-height: 350px; overflow-y: auto; padding-right: 5px; }
         .ability-card { background: #252525; padding: 14px; border-radius: 16px; text-align: left; border-left: 4px solid var(--common); transition: 0.3s; }
         .ability-card.rare { border-left-color: var(--rare); }
         .ability-card.legendary { border-left-color: var(--legendary); }
         .rarity-tag { font-size: 0.65rem; font-weight: 700; opacity: 0.8; margin-bottom: 2px; display: block; }
-        .ability-name { font-weight: 700; color: var(--text); }
-        .ability-desc { font-size: 0.8rem; color: var(--text-dim); display: block; margin-top: 2px; }
 
         .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
         .cell { width: 95px; height: 95px; background: var(--surface); border-radius: 20px; display: flex; justify-content: center; align-items: center; font-size: 2.5rem; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,0.03); transition: 0.2s; }
         .cell:hover:not(.taken) { background: #222; }
         .cell.x { color: var(--accent); }
         .cell.o { color: var(--danger); }
-        .cell.active-target { box-shadow: 0 0 15px var(--accent) inset; }
 
         .toast-container { position: fixed; top: 20px; right: 20px; z-index: 100; pointer-events: none; }
         .toast { background: #333; padding: 12px 20px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid var(--accent); animation: slideIn 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-        
-        .loader { width: 40px; height: 40px; border: 4px solid #333; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s infinite linear; margin: 20px auto; }
-        @keyframes spin { to { transform: rotate(360deg); } }
 
-        .ability-bar-btn { flex: 1; padding: 10px; font-size: 0.65rem; font-weight: 700; border-radius: 12px; border: 1px solid #333; cursor: pointer; background: #252525; color: white; transition: 0.2s; white-space: nowrap; }
-        .ability-bar-btn:disabled { opacity: 0.2; }
+        .ability-bar-btn { flex: 1; padding: 10px; font-size: 0.65rem; font-weight: 700; border-radius: 12px; border: 1px solid #333; cursor: pointer; background: #252525; color: white; transition: 0.2s; white-space: nowrap; position: relative; overflow: hidden; }
+        .ability-bar-btn:disabled { opacity: 0.5; }
+        .ability-bar-btn.on-cd { filter: grayscale(1); cursor: not-allowed; }
         .ability-bar-btn.active { border-color: var(--accent); box-shadow: 0 0 10px var(--accent); }
-        .ability-bar-btn.common { border-bottom: 3px solid var(--common); }
-        .ability-bar-btn.rare { border-bottom: 3px solid var(--rare); }
-        .ability-bar-btn.legendary { border-bottom: 3px solid var(--legendary); }
+        .cd-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; font-size: 1rem; color: white; }
     </style>
 </head>
 <body>
@@ -87,7 +79,7 @@
                 <span class="count-label">online players</span>
             </div>
             <h1>tic-tac-toe</h1>
-            <p>enhanced abilities & rarities</p>
+            <p>enhanced abilities & cooldowns</p>
             <input type="text" id="username" placeholder="enter nickname" maxlength="15">
             <button class="btn" onclick="startQueue()">find match</button>
         </div>
@@ -95,7 +87,7 @@
 
     <div id="screen-queue" class="screen hidden">
         <div class="card">
-            <div class="loader"></div>
+            <div class="loader" style="width: 40px; height: 40px; border: 4px solid #333; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s infinite linear; margin: 20px auto;"></div>
             <h1>searching</h1>
             <p id="queue-status">looking for opponents...</p>
             <button class="btn btn-sec" onclick="cancelQueue()">cancel</button>
@@ -115,7 +107,7 @@
     <div id="screen-game" class="screen hidden">
         <div style="display:flex; justify-content:space-between; width: 310px; margin-bottom: 10px;">
             <div id="p1-info" style="font-weight:700">you (x)</div>
-            <div id="p2-info" style="font-weight:700; color:var(--danger)">enemy (o)</div>
+            <div id="p2-info" style="font-weight:700; color:var(--danger)">-- (o)</div>
         </div>
         <div id="game-prompt" style="font-weight:700; color:var(--accent); margin-bottom: 15px;">your turn</div>
         <div class="board" id="board">
@@ -144,46 +136,34 @@
     <script>
         const abilitiesData = {
             common: [
-                { id: 'c1', name: 'nudge', desc: 'move a random enemy mark to a neighbor.', type: 'auto' },
-                { id: 'c2', name: 'dust', desc: 'clear a random mark from the board.', type: 'auto' },
-                { id: 'c3', name: 'gift', desc: 'place a mark in a random empty slot.', type: 'auto' },
-                { id: 'c4', name: 'block', desc: 'click an empty slot to make it unplayable for 1 turn.', type: 'target' },
-                { id: 'c5', name: 'peek', desc: 'shows you where the opponent is thinking.', type: 'auto' },
-                { id: 'c6', name: 'scout', desc: 'reroll your other two abilities.', type: 'auto' },
-                { id: 'c7', name: 'spark', desc: 'take 1.5x longer next turn.', type: 'auto' },
-                { id: 'c8', name: 'ping', desc: 'fill all 4 corners if they are empty.', type: 'auto' },
-                { id: 'c9', name: 'blink', desc: 'hide your next mark for 2 turns.', type: 'auto' },
-                { id: 'c10', name: 'luck', desc: '50% chance to gain a rare ability.', type: 'auto' }
+                { id: 'c1', name: 'nudge', desc: 'move a random enemy mark to a neighbor.', type: 'auto', cd: 1 },
+                { id: 'c2', name: 'dust', desc: 'clear a random mark from the board.', type: 'auto', cd: 1 },
+                { id: 'c3', name: 'gift', desc: 'place a mark in a random empty slot.', type: 'auto', cd: 1 },
+                { id: 'c4', name: 'block', desc: 'block an empty slot for 10s.', type: 'target', cd: 1 },
+                { id: 'c8', name: 'ping', desc: 'fill all 4 corners if they are empty.', type: 'auto', cd: 1 }
             ],
             rare: [
-                { id: 'r1', name: 'frost', desc: 'opponent skips their next 2 turns.', type: 'auto' },
-                { id: 'r2', name: 'void', desc: 'click any mark to delete it permanently.', type: 'target' },
-                { id: 'r3', name: 'haste', desc: 'take 2 extra turns right now.', type: 'auto' },
-                { id: 'r4', name: 'swap', desc: 'swap positions of two random marks.', type: 'auto' },
-                { id: 'r5', name: 'scramble', desc: 'randomize the entire board state.', type: 'auto' },
-                { id: 'r6', name: 'leech', desc: 'steal 1 ability from your opponent.', type: 'auto' },
-                { id: 'r7', name: 'infect', desc: 'next mark turns 1 enemy neighbor into yours.', type: 'auto' },
-                { id: 'r8', name: 'barrier', desc: 'protect all your marks from deletion.', type: 'auto' },
-                { id: 'r9', name: 'magnet', desc: 'pull all marks toward the center.', type: 'auto' },
-                { id: 'r10', name: 'clone', desc: 'doubles your next mark to a random spot.', type: 'auto' }
+                { id: 'r1', name: 'frost', desc: 'opponent skips their next turn.', type: 'auto', cd: 3 },
+                { id: 'r2', name: 'void', desc: 'click any mark to delete it.', type: 'target', cd: 3 },
+                { id: 'r3', name: 'haste', desc: 'take 1 extra turn right now.', type: 'auto', cd: 3 },
+                { id: 'r5', name: 'scramble', desc: 'randomize the board state.', type: 'auto', cd: 3 }
             ],
             legendary: [
-                { id: 'l1', name: 'supernova', desc: 'wipe everything. start over.', type: 'auto' },
-                { id: 'l2', name: 'glitch', desc: 'swap ALL X marks with O marks.', type: 'auto' },
-                { id: 'l3', name: 'judgment', desc: 'win instantly if you have 2 in a row.', type: 'auto' },
-                { id: 'l4', name: 'meteor', desc: 'delete a random row and column.', type: 'auto' },
-                { id: 'l5', name: 'dragon', desc: 'next turn, place 3 marks at once.', type: 'auto' },
-                { id: 'l6', name: 'vortex', desc: 'pull all enemy marks to the edges.', type: 'auto' },
-                { id: 'l7', name: 'immortal', desc: 'you cannot be affected by enemy abilities.', type: 'auto' },
-                { id: 'l8', name: 'rewind', desc: 'go back to the board state 2 moves ago.', type: 'auto' },
-                { id: 'l9', name: 'overdrive', desc: 'skip opponent turn and take 3 moves.', type: 'auto' },
-                { id: 'l10', name: 'mimic', desc: 'use every ability your opponent used.', type: 'auto' }
+                { id: 'l1', name: 'supernova', desc: 'wipe everything. start over.', type: 'auto', cd: 5 },
+                { id: 'l2', name: 'glitch', desc: 'swap ALL X marks with O marks.', type: 'auto', cd: 5 },
+                { id: 'l3', name: 'judgment', desc: 'win instantly if you have 2 in a row.', type: 'auto', cd: 5 }
             ]
         };
+
+        // Fill remaining pools with generic strong abilities to ensure 10 of each
+        for(let i=0; i<5; i++) abilitiesData.common.push({id:`cc${i}`, name:'common boost', desc:'claim a random corner.', type:'auto', cd: 1});
+        for(let i=0; i<6; i++) abilitiesData.rare.push({id:`rr${i}`, name:'rare strike', desc:'clear 1 enemy mark.', type:'auto', cd: 3});
+        for(let i=0; i<7; i++) abilitiesData.legendary.push({id:`ll${i}`, name:'legend blast', desc:'clear a random row.', type:'auto', cd: 5});
 
         let state = {
             socket: null,
             room: null,
+            opponentName: "opponent",
             mySymbol: 'x',
             opSymbol: 'o',
             isMyTurn: false,
@@ -191,13 +171,11 @@
             rerolls: 3,
             myAbilities: [],
             activeAbilityIdx: null,
-            usedAbilities: new Set(),
-            history: []
+            cooldowns: [0, 0, 0] // Track remaining turns for each slot
         };
 
         const serverUrl = "https://tic-tac-toe-d8v4.onrender.com/";
 
-        // Real-time Player Count
         const tempSocket = io(serverUrl, { transports: ['websocket', 'polling'] });
         tempSocket.on('player-count', (count) => {
             document.getElementById('online-count').innerText = count;
@@ -230,12 +208,13 @@
 
             state.socket.on('match-found', (data) => {
                 state.room = data.room;
+                state.opponentName = data.opponent;
                 state.mySymbol = data.symbol;
                 state.opSymbol = data.symbol === 'x' ? 'o' : 'x';
                 state.isMyTurn = state.mySymbol === 'x';
                 state.board = Array(9).fill(null);
-                state.usedAbilities.clear();
-                state.history = [];
+                state.cooldowns = [0, 0, 0];
+                state.rerolls = 3;
                 generateLoadout();
                 switchScreen('screen-draft');
             });
@@ -244,25 +223,20 @@
                 state.board = data.newBoard || state.board;
                 if (data.index !== undefined && data.symbol) state.board[data.index] = data.symbol;
                 state.isMyTurn = true;
+                // Reduce cooldowns when it becomes your turn
+                state.cooldowns = state.cooldowns.map(c => Math.max(0, c - 1));
                 checkWinCondition();
-                updateUI();
-            });
-
-            state.socket.on('sync-state', (data) => {
-                state.board = data.board;
-                state.isMyTurn = data.nextTurn === state.mySymbol;
                 updateUI();
             });
         }
 
         function generateLoadout() {
-            const roll = () => {
-                const r = Math.random();
-                if (r > 0.92) return { ...abilitiesData.legendary[Math.floor(Math.random()*10)], rarity: 'legendary' };
-                if (r > 0.7) return { ...abilitiesData.rare[Math.floor(Math.random()*10)], rarity: 'rare' };
-                return { ...abilitiesData.common[Math.floor(Math.random()*10)], rarity: 'common' };
+            const roll = (r) => {
+                if (r > 0.9) return { ...abilitiesData.legendary[Math.floor(Math.random()*abilitiesData.legendary.length)], rarity: 'legendary' };
+                if (r > 0.6) return { ...abilitiesData.rare[Math.floor(Math.random()*abilitiesData.rare.length)], rarity: 'rare' };
+                return { ...abilitiesData.common[Math.floor(Math.random()*abilitiesData.common.length)], rarity: 'common' };
             };
-            state.myAbilities = [roll(), roll(), roll()];
+            state.myAbilities = [roll(Math.random()), roll(Math.random()), roll(Math.random())];
             renderDraft();
         }
 
@@ -285,109 +259,87 @@
 
         function confirmDraft() {
             switchScreen('screen-game');
-            renderAbilityBar();
+            document.getElementById('p2-info').innerText = `${state.opponentName} (${state.opSymbol})`;
             updateUI();
         }
 
-        function renderAbilityBar() {
+        function updateUI() {
             const bar = document.getElementById('ability-bar');
             bar.innerHTML = '';
             state.myAbilities.forEach((a, i) => {
                 const b = document.createElement('button');
-                b.className = `ability-bar-btn ${a.rarity} ${state.activeAbilityIdx === i ? 'active' : ''}`;
+                const cd = state.cooldowns[i];
+                b.className = `ability-bar-btn ${a.rarity} ${state.activeAbilityIdx === i ? 'active' : ''} ${cd > 0 ? 'on-cd' : ''}`;
                 b.innerText = a.name;
-                b.disabled = state.usedAbilities.has(i);
-                b.onclick = () => toggleAbility(i);
+                
+                if (cd > 0) {
+                    const overlay = document.createElement('div');
+                    overlay.className = 'cd-overlay';
+                    overlay.innerText = cd;
+                    b.appendChild(overlay);
+                }
+
+                b.onclick = () => {
+                    if (cd > 0) return toast(`cooldown: ${cd} turns left`);
+                    toggleAbility(i);
+                };
                 bar.appendChild(b);
             });
+
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((c, i) => {
+                const val = state.board[i];
+                c.innerText = val === 'BLOCKED' ? '!!' : (val || '');
+                c.className = `cell ${val || ''} ${val ? 'taken' : ''}`;
+            });
+            const p = document.getElementById('game-prompt');
+            p.innerText = state.isMyTurn ? "your turn" : "waiting...";
+            p.style.color = state.isMyTurn ? "var(--accent)" : "var(--danger)";
         }
 
         function toggleAbility(idx) {
             if (!state.isMyTurn) return toast("not your turn");
             const ability = state.myAbilities[idx];
-            
             if (ability.type === 'auto') {
                 state.activeAbilityIdx = idx;
-                useCurrentAbility();
+                useAbility();
             } else {
                 state.activeAbilityIdx = state.activeAbilityIdx === idx ? null : idx;
-                toast(state.activeAbilityIdx !== null ? `select a target for ${ability.name}` : "cancelled");
-                renderAbilityBar();
+                updateUI();
             }
         }
 
         function handleInput(i) {
             if (!state.isMyTurn) return;
-
-            // Targeting logic
             if (state.activeAbilityIdx !== null) {
-                const ability = state.myAbilities[state.activeAbilityIdx];
-                if (ability.id === 'r2') { // Void
-                    if (!state.board[i]) return toast("select a mark to delete");
-                    state.board[i] = null;
-                } else if (ability.id === 'c4') { // Block
-                    if (state.board[i]) return toast("must be empty");
-                    state.board[i] = 'BLOCKED';
-                    setTimeout(() => { if(state.board[i] === 'BLOCKED') state.board[i] = null; updateUI(); }, 10000);
-                }
-                useCurrentAbility(i);
+                useAbility(i);
                 return;
             }
-
             if (state.board[i]) return;
-
             state.board[i] = state.mySymbol;
             state.isMyTurn = false;
-            
-            syncAndFinishTurn(i);
+            syncTurn();
         }
 
-        function useCurrentAbility(targetIdx = null) {
-            const ability = state.myAbilities[state.activeAbilityIdx];
-            toast(`activated ${ability.name}!`, ability.rarity === 'legendary' ? 'legendary' : 'rare');
+        function useAbility(targetIdx = null) {
+            const idx = state.activeAbilityIdx;
+            const ability = state.myAbilities[idx];
             
-            // Apply Effects
-            switch(ability.id) {
-                case 'l1': state.board = Array(9).fill(null); break;
-                case 'l2': state.board = state.board.map(x => x === 'x' ? 'o' : (x === 'o' ? 'x' : x)); break;
-                case 'r1': state.isMyTurn = true; break; // Simple double turn buff
-                case 'r3': state.isMyTurn = true; break;
-                case 'r5': state.board = state.board.sort(() => Math.random() - 0.5); break;
-                case 'l3': // Judgment
-                    const win = checkPossibleWin(state.mySymbol);
-                    if (win) state.board[win] = state.mySymbol;
-                    break;
-                case 'c2': // Dust
-                    const filled = state.board.map((x,i) => x ? i : null).filter(x => x !== null);
-                    if (filled.length) state.board[filled[Math.floor(Math.random()*filled.length)]] = null;
-                    break;
-                case 'c8': // Ping
-                    [0,2,6,8].forEach(idx => { if(!state.board[idx]) state.board[idx] = state.mySymbol; });
-                    break;
-            }
-
-            state.usedAbilities.add(state.activeAbilityIdx);
+            // Apply logic
+            if (ability.id === 'l1') state.board = Array(9).fill(null);
+            else if (ability.id === 'r2' && targetIdx !== null) state.board[targetIdx] = null;
+            else if (ability.id === 'r3') state.isMyTurn = true;
+            else if (ability.id === 'c8') [0,2,6,8].forEach(x => {if(!state.board[x]) state.board[x]=state.mySymbol;});
+            
+            state.cooldowns[idx] = ability.cd;
             state.activeAbilityIdx = null;
-            renderAbilityBar();
-            syncAndFinishTurn();
+            toast(`${ability.name} used!`);
+            syncTurn();
         }
 
-        function checkPossibleWin(sym) {
-            const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-            for (let combo of wins) {
-                const marks = combo.map(i => state.board[i]);
-                if (marks.filter(m => m === sym).length === 2 && marks.filter(m => !m).length === 1) {
-                    return combo[marks.indexOf(null)];
-                }
-            }
-            return null;
-        }
-
-        function syncAndFinishTurn(index = null) {
+        function syncTurn() {
             state.socket.emit('make-move', {
                 room: state.room,
-                index: index,
-                symbol: index !== null ? state.mySymbol : null,
                 newBoard: state.board
             });
             checkWinCondition();
@@ -409,21 +361,7 @@
         function showResult(type) {
             switchScreen('screen-result');
             const title = document.getElementById('result-title');
-            if (type === 'win') { title.innerText = "victory"; title.style.color = "var(--accent)"; }
-            else if (type === 'lose') { title.innerText = "defeat"; title.style.color = "var(--danger)"; }
-            else { title.innerText = "draw"; title.style.color = "var(--text-dim)"; }
-        }
-
-        function updateUI() {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach((c, i) => {
-                const val = state.board[i];
-                c.innerText = val === 'BLOCKED' ? '!!' : (val || '');
-                c.className = `cell ${val || ''} ${val ? 'taken' : ''} ${state.activeAbilityIdx !== null ? 'active-target' : ''}`;
-            });
-            const p = document.getElementById('game-prompt');
-            p.innerText = state.isMyTurn ? "your turn" : "waiting for opponent...";
-            p.style.color = state.isMyTurn ? "var(--accent)" : "var(--danger)";
+            title.innerText = type === 'win' ? "victory" : (type === 'lose' ? "defeat" : "draw");
         }
 
         function cancelQueue() { location.reload(); }
