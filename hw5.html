@@ -49,6 +49,8 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
 
         .screen {
             position: absolute;
@@ -119,6 +121,33 @@
             margin-bottom: 24px;
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Toast Styles */
+        #toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .toast {
+            background: #2d2d2d;
+            border-left: 4px solid var(--danger);
+            color: var(--text);
+            padding: 16px 20px;
+            border-radius: 12px;
+            min-width: 280px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .toast.hide { animation: slideOut 0.4s ease-in forwards; }
+        .toast-title { font-weight: 700; color: var(--danger); }
 
         .ability-grid {
             display: grid;
@@ -192,6 +221,7 @@
 </head>
 <body>
 
+    <div id="toast-container"></div>
     <canvas id="vfx-canvas"></canvas>
 
     <div id="screen-start" class="screen">
@@ -205,8 +235,8 @@
 
     <div id="screen-queue" class="screen hidden">
         <div class="card">
-            <center><div class="loader-ring"></div></center>
-            <h1>searching</h1>
+            <center id="queue-loader"><div class="loader-ring"></div></center>
+            <h1 id="queue-header">searching</h1>
             <p id="queue-status">matching you with a player...</p>
             <button class="btn secondary" onclick="cancelQueue()">leave queue</button>
         </div>
@@ -279,10 +309,27 @@
             opSymbol: 'o',
             activeAbilityIdx: null,
             socket: null,
-            room: null
+            room: null,
+            queueTimer: null
         };
 
         const serverUrl = "https://tic-tac-toe-d8v4.onrender.com/";
+
+        function showToast(title, message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `
+                <span class="toast-title">${title}</span>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 500);
+            }, 5000);
+        }
 
         function show(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
@@ -293,15 +340,37 @@
             const val = document.getElementById('username').value.trim();
             if (val.length < 3) return;
             state.username = val;
+            
+            // Reset queue UI
+            document.getElementById('queue-loader').style.display = 'block';
+            document.getElementById('queue-header').innerText = 'searching';
+            document.getElementById('queue-status').innerText = 'matching you with a player...';
+            
             show('screen-queue');
 
-            state.socket = io(serverUrl);
+            // Setup 90 second timeout
+            state.queueTimer = setTimeout(() => {
+                document.getElementById('queue-loader').style.display = 'none';
+                document.getElementById('queue-header').innerText = 'empty lobby';
+                document.getElementById('queue-status').innerText = 'no one is playing currently';
+            }, 90000);
+
+            state.socket = io(serverUrl, {
+                reconnectionAttempts: 3,
+                timeout: 10000
+            });
 
             state.socket.on('connect', () => {
                 state.socket.emit('join-queue', state.username);
             });
 
+            state.socket.on('connect_error', (err) => {
+                showToast('server error', `could not connect to backend. info: ${err.message}`);
+                console.error('Socket Error:', err);
+            });
+
             state.socket.on('match-found', (data) => {
+                clearTimeout(state.queueTimer);
                 state.opponent = data.opponent;
                 state.room = data.room;
                 state.mySymbol = data.symbol;
@@ -314,6 +383,7 @@
 
         function cancelQueue() {
             if (state.socket) state.socket.disconnect();
+            clearTimeout(state.queueTimer);
             show('screen-start');
         }
 
@@ -393,9 +463,6 @@
 
         function handleCellClick(i, e) {
             if (!state.isMyTurn || state.board[i]) return;
-
-            // Simplified: for now we mark locally. 
-            // Real production would emit 'move' to socket here.
             state.board[i] = state.mySymbol;
             spawnRipple(e.clientX, e.clientY);
             checkGameState();
