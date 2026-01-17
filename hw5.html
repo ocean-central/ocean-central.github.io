@@ -5,12 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>tic tac toe - abilities</title>
     
-    <!-- google sans integration -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;700&display=swap" rel="stylesheet">
     
-    <!-- socket.io client -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
     <style>
@@ -21,282 +19,255 @@
             --text: #e8eaed;
             --text-dim: #9aa0a6;
             --danger: #f28b82;
-            --success: #81c995;
+            --common: #bdc1c6;
+            --rare: #81c995;
+            --legendary: #fdd663;
             --font: 'Google Sans', sans-serif;
         }
 
-        * {
-            margin: 0; padding: 0; box-sizing: border-box;
-            text-transform: lowercase; font-family: var(--font);
-            -webkit-tap-highlight-color: transparent;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; text-transform: lowercase; font-family: var(--font); }
+        body { background-color: var(--bg); color: var(--text); overflow: hidden; height: 100vh; display: flex; justify-content: center; align-items: center; }
 
-        body {
-            background-color: var(--bg); color: var(--text);
-            overflow: hidden; height: 100vh;
-            display: flex; justify-content: center; align-items: center;
-        }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
-        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
-
-        .screen {
-            position: absolute; width: 100%; height: 100%;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            transition: all 0.5s ease; padding: 24px;
-        }
-
+        .screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 24px; transition: 0.5s; }
         .hidden { display: none !important; }
 
-        .card {
-            background: var(--surface); padding: 32px; border-radius: 28px;
-            width: 100%; max-width: 420px; text-align: center;
-            border: 1px solid rgba(255,255,255,0.08);
-            animation: fadeIn 0.6s ease-out;
-        }
+        .card { background: var(--surface); padding: 32px; border-radius: 28px; width: 100%; max-width: 440px; text-align: center; border: 1px solid rgba(255,255,255,0.08); animation: fadeIn 0.6s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
-        h1 { font-size: 2.2rem; margin-bottom: 8px; color: var(--accent); letter-spacing: -1px; }
-        p { color: var(--text-dim); margin-bottom: 32px; font-size: 0.95rem; }
-
-        input {
-            width: 100%; padding: 18px; background: #252525;
-            border: 2px solid transparent; border-radius: 16px;
-            color: white; font-size: 1rem; margin-bottom: 20px; outline: none;
-        }
+        input { width: 100%; padding: 18px; background: #252525; border: 2px solid transparent; border-radius: 16px; color: white; margin-bottom: 20px; outline: none; }
         input:focus { border-color: var(--accent); }
 
-        .btn {
-            background: var(--accent); color: var(--bg);
-            padding: 16px 24px; border-radius: 16px;
-            border: none; font-weight: 700; cursor: pointer; width: 100%;
-        }
+        .btn { background: var(--accent); color: var(--bg); padding: 16px; border-radius: 16px; border: none; font-weight: 700; cursor: pointer; width: 100%; transition: 0.2s; }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn-sec { background: transparent; border: 1px solid #444; color: white; margin-top: 10px; }
 
-        .ability-grid {
-            display: grid; grid-template-columns: 1fr; gap: 12px;
-            margin-bottom: 24px; width: 100%;
-        }
-        .ability-card {
-            background: #252525; padding: 16px; border-radius: 18px; text-align: left;
-        }
-        .ability-name { display: block; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
-        .ability-desc { font-size: 0.85rem; color: var(--text-dim); }
+        .ability-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; max-height: 350px; overflow-y: auto; padding-right: 5px; }
+        .ability-card { background: #252525; padding: 14px; border-radius: 16px; text-align: left; border-left: 4px solid var(--common); }
+        .ability-card.rare { border-left-color: var(--rare); }
+        .ability-card.legendary { border-left-color: var(--legendary); }
+        .rarity-tag { font-size: 0.65rem; font-weight: 700; opacity: 0.8; margin-bottom: 2px; display: block; }
+        .ability-name { font-weight: 700; color: var(--text); }
+        .ability-desc { font-size: 0.8rem; color: var(--text-dim); display: block; margin-top: 2px; }
 
-        .board {
-            display: grid; grid-template-columns: repeat(3, 1fr);
-            gap: 12px; margin: 24px 0;
-        }
-        .cell {
-            width: 90px; height: 90px; background: var(--surface);
-            border-radius: 20px; display: flex; justify-content: center;
-            align-items: center; font-size: 2.4rem; font-weight: 700;
-            cursor: pointer; transition: all 0.2s;
-            border: 1px solid rgba(255,255,255,0.03);
-        }
+        .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
+        .cell { width: 95px; height: 95px; background: var(--surface); border-radius: 20px; display: flex; justify-content: center; align-items: center; font-size: 2.5rem; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,0.03); }
         .cell.x { color: var(--accent); }
         .cell.o { color: var(--danger); }
 
-        #toast-container {
-            position: fixed; top: 24px; right: 24px; z-index: 1000;
-            display: flex; flex-direction: column; gap: 12px;
-        }
-        .toast {
-            background: #2d2d2d; border-left: 4px solid var(--danger);
-            color: var(--text); padding: 16px 20px; border-radius: 12px;
-            min-width: 280px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-            animation: slideIn 0.4s forwards;
-        }
-        .toast.hide { animation: slideOut 0.4s forwards; }
-        .toast-debug { display: block; font-size: 0.7rem; color: var(--text-dim); margin-top: 8px; font-family: monospace; }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 100; }
+        .toast { background: #333; padding: 12px 20px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid var(--accent); animation: slideIn 0.3s; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
         
-        .loader-ring {
-            width: 54px; height: 54px; border: 4px solid var(--surface);
-            border-top: 4px solid var(--accent); border-radius: 50%;
-            animation: spin 1s linear infinite; margin-bottom: 24px;
-        }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .loader { width: 40px; height: 40px; border: 4px solid #333; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s infinite linear; margin: 20px auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-    <div id="toast-container"></div>
+    <div class="toast-container" id="toasts"></div>
 
-    <!-- Start Screen -->
     <div id="screen-start" class="screen">
         <div class="card">
             <h1>tic-tac-toe</h1>
-            <p>enhanced abilities edition</p>
-            <input type="text" id="username" placeholder="nickname" maxlength="20">
+            <p>30+ abilities & rarities</p>
+            <input type="text" id="username" placeholder="enter nickname" maxlength="15">
             <button class="btn" onclick="startQueue()">find match</button>
         </div>
     </div>
 
-    <!-- Queue Screen -->
     <div id="screen-queue" class="screen hidden">
         <div class="card">
-            <center id="queue-loader"><div class="loader-ring"></div></center>
-            <h1 id="queue-header">searching</h1>
-            <p id="queue-status">matching you with a player...</p>
-            <button class="btn" style="background:transparent; border:1px solid #444; color:white;" onclick="cancelQueue()">leave queue</button>
+            <div class="loader"></div>
+            <h1>searching</h1>
+            <p id="queue-status">looking for opponents...</p>
+            <button class="btn btn-sec" onclick="cancelQueue()">cancel</button>
         </div>
     </div>
 
-    <!-- Draft Screen -->
     <div id="screen-draft" class="screen hidden">
         <div class="card">
-            <h1>your abilities</h1>
-            <p>rolled 3 random perks</p>
+            <h1 id="draft-title">your loadout</h1>
+            <p id="reroll-count">rerolls left: 3</p>
             <div class="ability-grid" id="draft-grid"></div>
-            <button class="btn" onclick="confirmDraft()">confirm loadout</button>
+            <button class="btn" onclick="confirmDraft()">ready to play</button>
+            <button class="btn btn-sec" id="reroll-btn" onclick="rerollAbilities()">reroll (3/3)</button>
         </div>
     </div>
 
-    <!-- Game Screen -->
     <div id="screen-game" class="screen hidden">
-        <div style="display:flex; justify-content:space-between; width: 320px; margin-bottom: 16px;">
-            <div id="p1-label" style="font-weight:700">you (x)</div>
-            <div id="p2-label" style="font-weight:700; color:var(--danger)">opponent (o)</div>
+        <div style="display:flex; justify-content:space-between; width: 310px; margin-bottom: 10px;">
+            <div id="p1-info" style="font-weight:700">you (x)</div>
+            <div id="p2-info" style="font-weight:700; color:var(--danger)">enemy (o)</div>
         </div>
-
-        <div id="game-prompt" style="font-size:0.9rem; margin-bottom: 12px; color:var(--accent); animation: pulse 2s infinite">your turn</div>
-
+        <div id="game-prompt" style="font-weight:700; color:var(--accent); margin-bottom: 15px;">your turn</div>
         <div class="board" id="board">
-            <div class="cell" data-idx="0"></div>
-            <div class="cell" data-idx="1"></div>
-            <div class="cell" data-idx="2"></div>
-            <div class="cell" data-idx="3"></div>
-            <div class="cell" data-idx="4"></div>
-            <div class="cell" data-idx="5"></div>
-            <div class="cell" data-idx="6"></div>
-            <div class="cell" data-idx="7"></div>
-            <div class="cell" data-idx="8"></div>
+            <div class="cell" onclick="makeMove(0)"></div>
+            <div class="cell" onclick="makeMove(1)"></div>
+            <div class="cell" onclick="makeMove(2)"></div>
+            <div class="cell" onclick="makeMove(3)"></div>
+            <div class="cell" onclick="makeMove(4)"></div>
+            <div class="cell" onclick="makeMove(5)"></div>
+            <div class="cell" onclick="makeMove(6)"></div>
+            <div class="cell" onclick="makeMove(7)"></div>
+            <div class="cell" onclick="makeMove(8)"></div>
         </div>
-
-        <div id="ability-bar" style="display:flex; gap:8px; width:320px;"></div>
+        <div id="ability-bar" style="display:flex; gap:8px; width:310px; overflow-x:auto;"></div>
     </div>
 
     <script>
-        const abilitiesPool = [
-            { id: 'freeze', name: 'frost', desc: 'opponent skips their next turn.' },
-            { id: 'void', name: 'void', desc: 'remove any one mark from the board.' },
-            { id: 'haste', name: 'haste', desc: 'take an additional turn immediately.' }
-        ];
+        const abilities = {
+            common: [
+                { id: 'c1', name: 'nudge', desc: 'move an existing mark one slot.' },
+                { id: 'c2', name: 'peek', desc: 'see what your opponent rolled.' },
+                { id: 'c3', name: 'shield', desc: 'protect one slot from being wiped.' },
+                { id: 'c4', name: 'dust', desc: 'clear a random empty slot.' },
+                { id: 'c5', name: 'ping', desc: 'highlights a random corner.' },
+                { id: 'c6', name: 'slow', desc: 'opponent turn timer reduced next round.' },
+                { id: 'c7', name: 'spark', desc: 'add a glow to your next mark.' },
+                { id: 'c8', name: 'echo', desc: 'repeat your last chat message.' },
+                { id: 'c9', name: 'gift', desc: 'give opponent a common ability (wait why?)' },
+                { id: 'c10', name: 'blink', desc: 'briefly hide the board.' }
+            ],
+            rare: [
+                { id: 'r1', name: 'frost', desc: 'opponent skips 1 turn.' },
+                { id: 'r2', name: 'void', desc: 'remove 1 mark from the board.' },
+                { id: 'r3', name: 'haste', desc: 'take 2 turns this round.' },
+                { id: 'r4', name: 'swap', desc: 'swap positions of two marks.' },
+                { id: 'r5', name: 'veil', desc: 'hide your next move for 1 turn.' },
+                { id: 'r6', name: 'leech', desc: 'steal a random ability from enemy.' },
+                { id: 'r7', name: 'scramble', desc: 'shuffle all current marks.' },
+                { id: 'r8', name: 'magnet', desc: 'pull all marks toward the center.' },
+                { id: 'r9', name: 'infect', desc: 'your next mark spreads to a neighbor.' },
+                { id: 'r10', name: 'barrier', desc: 'block a row for 1 turn.' }
+            ],
+            legendary: [
+                { id: 'l1', name: 'supernova', desc: 'clear the entire board.' },
+                { id: 'l2', name: 'mimic', desc: 'copy the last move made.' },
+                { id: 'l3', name: 'rewind', desc: 'undo the last 2 moves.' },
+                { id: 'l4', name: 'glitch', desc: 'convert all O to X (or vice versa).' },
+                { id: 'l5', name: 'meteor', desc: 'wipe a random row instantly.' },
+                { id: 'l6', name: 'dragon', desc: 'fill 2 random slots with your mark.' },
+                { id: 'l7', name: 'overdrive', desc: 'abilities cost no charges this turn.' },
+                { id: 'l8', name: 'vortex', desc: 'suck all O marks into one corner.' },
+                { id: 'l9', name: 'immortal', desc: 'your marks cannot be removed ever.' },
+                { id: 'l10', name: 'judgment', desc: 'win instantly if you have 2 in a row.' }
+            ]
+        };
 
         let state = {
             socket: null,
-            queueTimer: null,
             username: "",
             opponent: "",
             room: null,
             mySymbol: 'x',
             opSymbol: 'o',
-            board: Array(9).fill(null),
             isMyTurn: false,
+            board: Array(9).fill(null),
+            rerolls: 3,
             myAbilities: []
         };
 
         const serverUrl = "https://tic-tac-toe-d8v4.onrender.com/";
 
-        function showToast(title, message, debugInfo = "") {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.innerHTML = `<span class="toast-title">${title}</span><span>${message}</span>${debugInfo ? `<span class="toast-debug">LOG: ${debugInfo}</span>` : ''}`;
-            container.appendChild(toast);
-            setTimeout(() => { toast.classList.add('hide'); setTimeout(() => toast.remove(), 500); }, 5000);
+        function toast(msg) {
+            const t = document.getElementById('toasts');
+            const d = document.createElement('div');
+            d.className = 'toast';
+            d.innerText = msg;
+            t.appendChild(d);
+            setTimeout(() => d.remove(), 4000);
         }
 
-        function showScreen(id) {
+        function switchScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
         }
 
         function startQueue() {
             state.username = document.getElementById('username').value.trim();
-            if (state.username.length < 3) return;
-
-            showScreen('screen-queue');
-
-            state.queueTimer = setTimeout(() => {
-                document.getElementById('queue-loader').classList.add('hidden');
-                document.getElementById('queue-header').innerText = "empty lobby";
-                document.getElementById('queue-status').innerText = "no one is playing currently";
-            }, 90000);
-
+            if (state.username.length < 2) return toast("name too short");
+            
+            switchScreen('screen-queue');
             state.socket = io(serverUrl, { transports: ['websocket', 'polling'] });
 
-            state.socket.on('connect', () => {
-                state.socket.emit('join-queue', state.username);
-            });
-
-            state.socket.on('connect_error', (err) => {
-                showToast("Connection Error", "Server is likely waking up.", err.message);
-            });
+            state.socket.on('connect', () => state.socket.emit('join-queue', state.username));
+            state.socket.on('connect_error', () => toast("connecting..."));
 
             state.socket.on('match-found', (data) => {
-                clearTimeout(state.queueTimer);
                 state.opponent = data.opponent;
                 state.room = data.room;
                 state.mySymbol = data.symbol;
                 state.opSymbol = data.symbol === 'x' ? 'o' : 'x';
                 state.isMyTurn = state.mySymbol === 'x';
-                
-                // Roll Abilities
-                state.myAbilities = [...abilitiesPool].sort(() => 0.5 - Math.random()).slice(0, 3);
-                
-                const grid = document.getElementById('draft-grid');
-                grid.innerHTML = '';
-                state.myAbilities.forEach(a => {
-                    grid.innerHTML += `<div class="ability-card"><span class="ability-name">${a.name}</span><span class="ability-desc">${a.desc}</span></div>`;
-                });
-
-                showScreen('screen-draft');
+                generateLoadout();
+                switchScreen('screen-draft');
             });
 
-            // Handle Moves from Opponent
             state.socket.on('move-made', (data) => {
-                state.board[data.index] = state.symbol === 'x' ? 'o' : 'x';
+                state.board[data.index] = data.symbol;
                 state.isMyTurn = true;
-                renderBoard();
-                updatePrompt();
+                updateBoard();
             });
         }
 
+        function generateLoadout() {
+            const roll = () => {
+                const r = Math.random();
+                if (r > 0.9) return { ...abilities.legendary[Math.floor(Math.random()*10)], rarity: 'legendary' };
+                if (r > 0.6) return { ...abilities.rare[Math.floor(Math.random()*10)], rarity: 'rare' };
+                return { ...abilities.common[Math.floor(Math.random()*10)], rarity: 'common' };
+            };
+            state.myAbilities = [roll(), roll(), roll()];
+            renderDraft();
+        }
+
+        function renderDraft() {
+            const grid = document.getElementById('draft-grid');
+            grid.innerHTML = '';
+            state.myAbilities.forEach(a => {
+                grid.innerHTML += `
+                    <div class="ability-card ${a.rarity}">
+                        <span class="rarity-tag">${a.rarity}</span>
+                        <span class="ability-name">${a.name}</span>
+                        <span class="ability-desc">${a.desc}</span>
+                    </div>`;
+            });
+            document.getElementById('reroll-count').innerText = `rerolls left: ${state.rerolls}`;
+            document.getElementById('reroll-btn').innerText = `reroll (${state.rerolls}/3)`;
+            document.getElementById('reroll-btn').disabled = state.rerolls <= 0;
+        }
+
+        function rerollAbilities() {
+            if (state.rerolls > 0) {
+                state.rerolls--;
+                generateLoadout();
+            }
+        }
+
         function confirmDraft() {
-            showScreen('screen-game');
-            document.getElementById('p1-label').innerText = `you (${state.mySymbol})`;
-            document.getElementById('p2-label').innerText = `${state.opponent} (${state.opSymbol})`;
+            switchScreen('screen-game');
+            document.getElementById('p1-info').innerText = `you (${state.mySymbol})`;
+            document.getElementById('p2-info').innerText = `${state.opponent} (${state.opSymbol})`;
             
             const bar = document.getElementById('ability-bar');
             bar.innerHTML = '';
             state.myAbilities.forEach(a => {
-                bar.innerHTML += `<button class="btn" style="padding:10px; font-size:0.7rem;">${a.name}</button>`;
+                const b = document.createElement('button');
+                b.className = `btn ${a.rarity}`;
+                b.style.fontSize = '0.65rem';
+                b.style.padding = '8px';
+                b.innerText = a.name;
+                b.onclick = () => toast("ability clicked! (feature coming soon)");
+                bar.appendChild(b);
             });
-
-            renderBoard();
-            updatePrompt();
+            updateBoard();
         }
 
-        function renderBoard() {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach((cell, i) => {
-                const mark = state.board[i];
-                cell.innerText = mark || '';
-                cell.className = `cell ${mark || ''}`;
-                cell.onclick = () => handleMove(i);
-            });
-        }
-
-        function handleMove(i) {
+        function makeMove(i) {
             if (!state.isMyTurn || state.board[i]) return;
-            
             state.board[i] = state.mySymbol;
             state.isMyTurn = false;
-            renderBoard();
-            updatePrompt();
-
+            updateBoard();
             state.socket.emit('make-move', {
                 room: state.room,
                 index: i,
@@ -304,7 +275,12 @@
             });
         }
 
-        function updatePrompt() {
+        function updateBoard() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((c, i) => {
+                c.innerText = state.board[i] || '';
+                c.className = `cell ${state.board[i] || ''}`;
+            });
             const p = document.getElementById('game-prompt');
             p.innerText = state.isMyTurn ? "your turn" : `${state.opponent}'s turn`;
             p.style.color = state.isMyTurn ? "var(--accent)" : "var(--danger)";
