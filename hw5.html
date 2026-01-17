@@ -148,6 +148,8 @@
         }
         .toast.hide { animation: slideOut 0.4s ease-in forwards; }
         .toast-title { font-weight: 700; color: var(--danger); }
+        .toast.info { border-left-color: var(--accent); }
+        .toast.info .toast-title { color: var(--accent); }
 
         .ability-grid {
             display: grid;
@@ -315,10 +317,10 @@
 
         const serverUrl = "https://tic-tac-toe-d8v4.onrender.com/";
 
-        function showToast(title, message) {
+        function showToast(title, message, type = 'danger') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            toast.className = 'toast';
+            toast.className = `toast ${type === 'info' ? 'info' : ''}`;
             toast.innerHTML = `
                 <span class="toast-title">${title}</span>
                 <span>${message}</span>
@@ -328,7 +330,7 @@
             setTimeout(() => {
                 toast.classList.add('hide');
                 setTimeout(() => toast.remove(), 500);
-            }, 5000);
+            }, 6000);
         }
 
         function show(id) {
@@ -355,17 +357,27 @@
                 document.getElementById('queue-status').innerText = 'no one is playing currently';
             }, 90000);
 
+            // Updated socket configuration for Render
             state.socket = io(serverUrl, {
-                reconnectionAttempts: 3,
-                timeout: 10000
+                transports: ['websocket', 'polling'], // Prefer websocket
+                reconnection: true,
+                reconnectionAttempts: 10,
+                reconnectionDelay: 2000,
+                timeout: 20000 // Give Render time to wake up
             });
 
             state.socket.on('connect', () => {
                 state.socket.emit('join-queue', state.username);
+                console.log('Connected to server!');
             });
 
+            // Specific check for polling errors
             state.socket.on('connect_error', (err) => {
-                showToast('server error', `could not connect to backend. info: ${err.message}`);
+                if (err.message.includes('xhr poll error')) {
+                    showToast('server sleeping', 'render is waking up the server. this takes 30-60s. please stay on this screen.', 'info');
+                } else {
+                    showToast('server error', `could not connect. info: ${err.message}`);
+                }
                 console.error('Socket Error:', err);
             });
 
